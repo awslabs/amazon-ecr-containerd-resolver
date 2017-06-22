@@ -31,9 +31,16 @@ build: $(LOCAL_BINARY)
 $(LOCAL_BINARY): $(SOURCES) $(VENDORDIR)
 	cd $(EXAMPLEDIR) && go build -o $(LOCAL_BINARY) .
 
+.PHONY: vendor
+vendor: $(VENDORDIR)
+
 $(VENDORDIR): $(DEP)
 	which dep || go get -u github.com/golang/dep/...
 	dep ensure
+
+.PHONY: test
+test: $(SOURCES) $(VENDORDIR)
+	go test -v $(shell go list ./... | grep -v '/vendor/')
 
 .PHONY: clean
 clean:

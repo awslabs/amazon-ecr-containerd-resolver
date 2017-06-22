@@ -1,0 +1,11 @@
+language: go
+sudo: false
+os:
+    - linux
+go:
+    - 1.8
+go_import_path: github.com/samuelkarp/amazon-ecr-containerd-resolver
+install: make vendor
+script:
+- make
+- make test
