@@ -24,10 +24,9 @@
   revision = "0d9f544bb94aac29c185968483459ef74d6deb5d"
 
 [[projects]]
-  branch = "master"
   name = "github.com/containerd/containerd"
-  packages = [".","api/services/containers","api/services/content","api/services/diff","api/services/execution","api/services/images","api/services/namespaces","api/services/snapshot","api/services/version","api/types/descriptor","api/types/mount","api/types/task","containers","content","images","log","metadata","mount","namespaces","plugin","reference","remotes","remotes/docker","remotes/docker/schema1","rootfs","services/content","services/diff","services/images","services/snapshot","snapshot"]
-  revision = "100b93ea463dba27ff96b67ab712cf8d743999e8"
+  packages = [".","api/services/containers/v1","api/services/content/v1","api/services/diff/v1","api/services/events/v1","api/services/images/v1","api/services/namespaces/v1","api/services/snapshot/v1","api/services/tasks/v1","api/services/version/v1","api/types/descriptor","api/types/event","api/types/mount","api/types/task","containers","content","events","images","log","metadata","mount","namespaces","plugin","reference","remotes","remotes/docker","remotes/docker/schema1","rootfs","services/content","services/diff","services/images","services/snapshot","snapshot"]
+  revision = "c4da4ed3932fbe8e35f43d6495731c56e9e1052c"
 
 [[projects]]
   branch = "master"
@@ -39,6 +38,12 @@
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
   revision = "6d212800a42e8ab5c146b8ace3490ee17e5225f9"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/docker/go-events"
+  packages = ["."]
+  revision = "aa2e3b613fbbfdddbe055a7b9e3ce271cfd83eca"
 
 [[projects]]
   name = "github.com/go-ini/ini"
@@ -136,6 +141,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "aac69bc033e8ad1fb360365a370641b0ed503bdec10c2fb05e3c1c3a40b20b1c"
+  inputs-digest = "2677790afbfe3cc8671e35892291786d4ae4448eecaa9cb4a9f49a3b50bb98c0"
   solver-name = "gps-cdcl"
   solver-version = 1
