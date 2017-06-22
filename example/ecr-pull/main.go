@@ -25,17 +25,7 @@ import (
 	"github.com/samuelkarp/amazon-ecr-containerd-resolver/ecr"
 )
 
-const (
-	namespaceEnvVar  = "CONTAINERD_NAMESPACE"
-	defaultNamespace = "default"
-)
-
 func main() {
-	namespace := os.Getenv(namespaceEnvVar)
-	if namespace == "" {
-		namespace = defaultNamespace
-	}
-
 	if len(os.Args) < 2 {
 		fmt.Println("must provide image to pull as argument")
 		os.Exit(1)
@@ -54,7 +44,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	ctx := namespaces.WithNamespace(context.Background(), namespace)
+	ctx := namespaces.NamespaceFromEnv(context.Background())
 	img, err := client.Pull(ctx, ref, containerd.WithResolver(ecr.NewResolver(awsSession)), containerd.WithPullUnpack)
 	if err != nil {
 		fmt.Println(err)
