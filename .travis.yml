@@ -3,7 +3,7 @@ sudo: false
 os:
     - linux
 go:
-    - 1.8
+    - 1.8.x
 go_import_path: github.com/samuelkarp/amazon-ecr-containerd-resolver
 install: make vendor
 script:

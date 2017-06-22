@@ -1,5 +1,7 @@
 # Amazon ECR containerd resolver
 
+[![Build Status](https://travis-ci.org/samuelkarp/amazon-ecr-containerd-resolver.svg?branch=master)](https://travis-ci.org/samuelkarp/amazon-ecr-containerd-resolver)
+
 The Amazon ECR containerd resolver is an implementation of a
 [containerd](https://github.com/containerd/containerd)
 `Resolver` and `Fetcher` that can pull images from Amazon ECR using the Amazon
