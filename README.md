@@ -14,8 +14,26 @@ ECR API instead of the Docker Registry API.
 
 ## Usage
 
+```go
+img, err := client.Pull(
+    namespaces.NamespaceFromEnv(ctx),
+    "ecr.aws/arn:aws:ecr:us-west-2:123456789012:repository/myrepository:mytag",
+    containerd.WithResolver(ecr.NewResolver(awsSession)),
+    containerd.WithPullUnpack)
+```
+
 A small example program is provided in the [example](tree/master/example)
 directory demonstrating how to use the resolver with containerd.
+
+### `ref`
+
+containerd specifies images with a `ref`. `ref`s are different from Docker
+image names, as `ref`s intend to encode an identifier, but not a retrieval
+mechanism.  `ref`s start with a DNS-style namespace that can be used to select
+separate `Resolver`s to use.
+
+The canonical `ref` format used by the amazon-ecr-containerd-resolver is 
+`ecr.aws/` followed by the ARN of the repository and a label and/or a digest.
 
 ## Building
 
