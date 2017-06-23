@@ -22,20 +22,14 @@ import (
 	"github.com/aws/aws-sdk-go/service/ecr"
 	"github.com/containerd/containerd/reference"
 	"github.com/pkg/errors"
+	"github.com/samuelkarp/amazon-ecr-containerd-resolver/ecr/arn"
 )
 
 const (
 	refPrefix           = "ecr.aws/"
 	arnDelimiter        = ":"
-	arnSections         = 6
 	arnPrefix           = "arn:"
 	repositoryDelimiter = "/"
-
-	// zero-indexed
-	sectionPartition  = 1
-	sectionRegion     = 3
-	sectionRegistry   = 4
-	sectionRepository = 5
 )
 
 var (
@@ -57,7 +51,7 @@ func ParseRef(ref string) (ECRSpec, error) {
 		return ECRSpec{}, invalidARN
 	}
 	stripped := ref[len(refPrefix):]
-	spec, err := ParseARN(stripped)
+	spec, err := parseARN(stripped)
 	if err != nil {
 		return ECRSpec{}, err
 	}
@@ -74,24 +68,21 @@ func ParseRef(ref string) (ECRSpec, error) {
 	return spec, nil
 }
 
-// ParseARN parses an ECR ARN into its constituent parts
+// parseARN parses an ECR ARN into its constituent parts
 // An example ARN is arn:aws:ecr:us-west-2:123456789012:repository/foo/bar
-func ParseARN(arn string) (ECRSpec, error) {
-	if !strings.HasPrefix(arn, arnPrefix) {
-		return ECRSpec{}, invalidARN
+func parseARN(a string) (ECRSpec, error) {
+	parsed, err := arn.Parse(a)
+	if err != nil {
+		return ECRSpec{}, err
 	}
-	sections := strings.SplitN(arn, arnDelimiter, arnSections)
-	if len(sections) != arnSections {
-		return ECRSpec{}, invalidARN
-	}
-	repositorySections := strings.SplitN(sections[sectionRepository], repositoryDelimiter, 2)
+	repositorySections := strings.SplitN(parsed.Resource, repositoryDelimiter, 2)
 	if len(repositorySections) != 2 {
 		return ECRSpec{}, invalidARN
 	}
 	return ECRSpec{
-		Partition:  sections[sectionPartition],
-		Region:     sections[sectionRegion],
-		Registry:   sections[sectionRegistry],
+		Partition:  parsed.Partition,
+		Region:     parsed.Region,
+		Registry:   parsed.AccountID,
 		Repository: repositorySections[1],
 	}, nil
 }
@@ -108,9 +99,13 @@ func (spec ECRSpec) Canonical() string {
 	return refPrefix + spec.ARN() + object
 }
 
-// ARN returns the canonical representation of the ARN
+// ARN returns the canonical representation of the ECR ARN
 func (spec ECRSpec) ARN() string {
-	return arnPrefix + spec.Partition + arnDelimiter + "ecr" + arnDelimiter + spec.Region + arnDelimiter + spec.Registry + arnDelimiter + "repository/" + spec.Repository
+	return arnPrefix +
+		spec.Partition + arnDelimiter +
+		"ecr" + arnDelimiter +
+		spec.Region + arnDelimiter +
+		spec.Registry + arnDelimiter + "repository/" + spec.Repository
 }
 
 // Spec returns a reference.Spec

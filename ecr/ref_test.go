@@ -15,47 +15,12 @@
 package ecr
 
 import (
+	"errors"
 	"testing"
 
+	"github.com/samuelkarp/amazon-ecr-containerd-resolver/ecr/arn"
 	"github.com/stretchr/testify/assert"
 )
-
-func TestParseARN(t *testing.T) {
-	cases := []struct {
-		arn  string
-		spec ECRSpec
-		err  error
-	}{
-		{
-			arn: "invalid",
-			err: invalidARN,
-		},
-		{
-			arn: "arn:nope",
-			err: invalidARN,
-		},
-		{
-			arn: "arn:aws:ecr:us-west-2:123456789012:repository/foo/bar",
-			spec: ECRSpec{
-				Partition:  "aws",
-				Region:     "us-west-2",
-				Registry:   "123456789012",
-				Repository: "foo/bar",
-			},
-		},
-	}
-	for _, tc := range cases {
-		t.Run(tc.arn, func(t *testing.T) {
-			spec, err := ParseARN(tc.arn)
-			assert.Equal(t, tc.spec, spec)
-			if tc.err == nil {
-				assert.Nil(t, err)
-			} else {
-				assert.Equal(t, tc.err, err)
-			}
-		})
-	}
-}
 
 func TestParseRef(t *testing.T) {
 	cases := []struct {
@@ -69,7 +34,7 @@ func TestParseRef(t *testing.T) {
 		},
 		{
 			ref: "ecr.aws/arn:nope",
-			err: invalidARN,
+			err: arn.ARNError(errors.New("arn: not enough sections")),
 		},
 		{
 			ref: "arn:aws:ecr:us-west-2:123456789012:repository/foo/bar",
