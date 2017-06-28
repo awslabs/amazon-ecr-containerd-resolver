@@ -86,6 +86,10 @@
   branch = "master"
   name = "github.com/opencontainers/image-spec"
 
+[[override]] # see https://github.com/containerd/containerd/commit/49f9dc494f6ce0190e6346ebef81ea2ceaf3bc9e
+  name = "github.com/opencontainers/runtime-spec"
+  revision = "198f23f827eea397d4331d7eb048d9d4c7ff7bee"
+
 [[constraint]]
   branch = "master"
   name = "github.com/pkg/errors"

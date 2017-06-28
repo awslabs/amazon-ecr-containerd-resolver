@@ -24,9 +24,10 @@
   revision = "0d9f544bb94aac29c185968483459ef74d6deb5d"
 
 [[projects]]
+  branch = "master"
   name = "github.com/containerd/containerd"
-  packages = [".","api/services/containers/v1","api/services/content/v1","api/services/diff/v1","api/services/events/v1","api/services/images/v1","api/services/namespaces/v1","api/services/snapshot/v1","api/services/tasks/v1","api/services/version/v1","api/types/descriptor","api/types/event","api/types/mount","api/types/task","containers","content","events","images","log","metadata","mount","namespaces","plugin","reference","remotes","remotes/docker","remotes/docker/schema1","rootfs","services/content","services/diff","services/images","services/snapshot","snapshot"]
-  revision = "c4da4ed3932fbe8e35f43d6495731c56e9e1052c"
+  packages = [".","api/services/containers/v1","api/services/content/v1","api/services/diff/v1","api/services/events/v1","api/services/images/v1","api/services/namespaces/v1","api/services/snapshot/v1","api/services/tasks/v1","api/services/version/v1","api/types","api/types/task","containers","content","events","identifiers","images","log","metadata","mount","namespaces","plugin","reference","remotes","remotes/docker","remotes/docker/schema1","rootfs","services/content","services/diff","services/images","services/snapshot","snapshot"]
+  revision = "bd25543f5adf101b28bd12e91bcca6a676fb7298"
 
 [[projects]]
   branch = "master"
@@ -83,8 +84,7 @@
 [[projects]]
   name = "github.com/opencontainers/runtime-spec"
   packages = ["specs-go"]
-  revision = "035da1dca3dfbb00d752eb58b0b158d6129f3776"
-  version = "v1.0.0-rc5"
+  revision = "198f23f827eea397d4331d7eb048d9d4c7ff7bee"
 
 [[projects]]
   branch = "master"
@@ -141,6 +141,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "2677790afbfe3cc8671e35892291786d4ae4448eecaa9cb4a9f49a3b50bb98c0"
+  inputs-digest = "dd05405b4c49af7d0b1d965b20e257fb917da43008c37ba624da310b7819d48d"
   solver-name = "gps-cdcl"
   solver-version = 1
