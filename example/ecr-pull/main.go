@@ -45,7 +45,10 @@ func main() {
 	}
 
 	ctx := namespaces.NamespaceFromEnv(context.Background())
-	img, err := client.Pull(ctx, ref, containerd.WithResolver(ecr.NewResolver(awsSession)), containerd.WithPullUnpack)
+	img, err := client.Pull(ctx, ref,
+		containerd.WithResolver(ecr.NewResolver(awsSession)),
+		containerd.WithPullUnpack,
+		containerd.WithSchema1Conversion)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

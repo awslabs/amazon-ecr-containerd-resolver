@@ -10,8 +10,6 @@ ECR API instead of the Docker Registry API.
 > *Note:* This repository is a proof-of-concept and is not recommended for
 > production use.
 
-> *Note:* The Amazon ECR containerd resolver only supports Schema 2 images.
-
 ## Usage
 
 ```go
@@ -19,7 +17,8 @@ img, err := client.Pull(
     namespaces.NamespaceFromEnv(ctx),
     "ecr.aws/arn:aws:ecr:us-west-2:123456789012:repository/myrepository:mytag",
     containerd.WithResolver(ecr.NewResolver(awsSession)),
-    containerd.WithPullUnpack)
+    containerd.WithPullUnpack,
+    containerd.WithSchema1Conversion)
 ```
 
 A small example program is provided in the [example](tree/master/example)

@@ -49,7 +49,8 @@ func (f *ecrFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.Rea
 	switch desc.MediaType {
 	case
 		ocispec.MediaTypeImageManifest,
-		images.MediaTypeDockerSchema2Manifest:
+		images.MediaTypeDockerSchema2Manifest,
+		images.MediaTypeDockerSchema1Manifest:
 		return f.fetchManifest(ctx, desc)
 	case
 		images.MediaTypeDockerSchema2Layer,
@@ -117,9 +118,6 @@ func (f *ecrFetcher) fetchLayer(ctx context.Context, desc ocispec.Descriptor) (i
 		return nil, err
 	}
 	if resp.StatusCode > 299 {
-		//		if resp.StatusCode == http.StatusNotFound {
-		//			continue // try one of the other urls.
-		//		}
 		resp.Body.Close()
 		return nil, errors.Errorf("unexpected status code %v: %v", downloadURL, resp.Status)
 	}

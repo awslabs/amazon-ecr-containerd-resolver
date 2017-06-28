@@ -16,6 +16,7 @@ package ecr
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
@@ -75,9 +76,11 @@ func (r *ecrResolver) Resolve(ctx context.Context, ref string) (string, ocispec.
 		return "", ocispec.Descriptor{}, reference.ErrInvalid
 	}
 	ecrImage = batchGetImageOutput.Images[0]
+	mediaType := parseImageManifestMediaType(aws.StringValue(ecrImage.ImageManifest))
+	fmt.Printf("resolve: media type=%s\n", mediaType)
 	desc := ocispec.Descriptor{
 		Digest:    digest.Digest(aws.StringValue(ecrImage.ImageId.ImageDigest)),
-		MediaType: images.MediaTypeDockerSchema2Manifest, //TODO
+		MediaType: mediaType,
 	}
 
 	return ecrSpec.Canonical(), desc, nil
@@ -90,6 +93,34 @@ func (r *ecrResolver) getClient(region string) ecriface.ECRAPI {
 		r.clients[region] = ecrsdk.New(r.session, &aws.Config{Region: aws.String(region)})
 	}
 	return r.clients[region]
+}
+
+type manifestContent struct {
+	SchemaVersion int64         `json:"schemaVersion"`
+	Signatures    []interface{} `json:"signatures,omitempty"`
+	MediaType     string        `json:"mediaType,omitempty"`
+}
+
+func parseImageManifestMediaType(body string) string {
+	var manifest manifestContent
+	err := json.Unmarshal([]byte(body), &manifest)
+	if err != nil {
+		fmt.Printf("resolve: could not parse manifest: %s\n", err)
+		// default to schema 2 for now
+		return images.MediaTypeDockerSchema2Manifest
+	}
+	if manifest.SchemaVersion == 2 {
+		return manifest.MediaType
+	} else if manifest.SchemaVersion == 1 {
+		if len(manifest.Signatures) == 0 {
+			// unsigned
+			return "application/vnd.docker.distribution.manifest.v1+json"
+		} else {
+			return images.MediaTypeDockerSchema1Manifest
+		}
+	}
+
+	return ""
 }
 
 func (r *ecrResolver) Fetcher(ctx context.Context, ref string) (remotes.Fetcher, error) {
