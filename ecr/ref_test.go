@@ -43,18 +43,26 @@ func TestParseRef(t *testing.T) {
 		{
 			ref: "ecr.aws/arn:aws:ecr:us-west-2:123456789012:repository/foo/bar",
 			spec: ECRSpec{
-				Partition:  "aws",
-				Region:     "us-west-2",
-				Registry:   "123456789012",
+				arn: arn.ARN{
+					Partition: "aws",
+					Region:    "us-west-2",
+					AccountID: "123456789012",
+					Service:   "ecr",
+					Resource:  "repository/foo/bar",
+				},
 				Repository: "foo/bar",
 			},
 		},
 		{
 			ref: "ecr.aws/arn:aws:ecr:us-west-2:123456789012:repository/foo/bar:latest",
 			spec: ECRSpec{
-				Partition:  "aws",
-				Region:     "us-west-2",
-				Registry:   "123456789012",
+				arn: arn.ARN{
+					Partition: "aws",
+					Region:    "us-west-2",
+					AccountID: "123456789012",
+					Service:   "ecr",
+					Resource:  "repository/foo/bar",
+				},
 				Repository: "foo/bar",
 				Object:     "latest",
 			},
@@ -62,9 +70,13 @@ func TestParseRef(t *testing.T) {
 		{
 			ref: "ecr.aws/arn:aws:ecr:us-west-2:123456789012:repository/foo/bar:latest@sha256:digest",
 			spec: ECRSpec{
-				Partition:  "aws",
-				Region:     "us-west-2",
-				Registry:   "123456789012",
+				arn: arn.ARN{
+					Partition: "aws",
+					Region:    "us-west-2",
+					AccountID: "123456789012",
+					Service:   "ecr",
+					Resource:  "repository/foo/bar",
+				},
 				Repository: "foo/bar",
 				Object:     "latest@sha256:digest",
 			},
@@ -72,9 +84,13 @@ func TestParseRef(t *testing.T) {
 		{
 			ref: "ecr.aws/arn:aws:ecr:us-west-2:123456789012:repository/foo/bar@sha256:digest",
 			spec: ECRSpec{
-				Partition:  "aws",
-				Region:     "us-west-2",
-				Registry:   "123456789012",
+				arn: arn.ARN{
+					Partition: "aws",
+					Region:    "us-west-2",
+					AccountID: "123456789012",
+					Service:   "ecr",
+					Resource:  "repository/foo/bar",
+				},
 				Repository: "foo/bar",
 				Object:     "@sha256:digest",
 			},

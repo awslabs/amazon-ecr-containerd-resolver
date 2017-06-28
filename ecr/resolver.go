@@ -55,13 +55,13 @@ func (r *ecrResolver) Resolve(ctx context.Context, ref string) (string, ocispec.
 	}
 
 	batchGetImageInput := &ecr.BatchGetImageInput{
-		RegistryId:         aws.String(ecrSpec.Registry),
+		RegistryId:         aws.String(ecrSpec.Registry()),
 		RepositoryName:     aws.String(ecrSpec.Repository),
 		ImageIds:           []*ecr.ImageIdentifier{ecrSpec.ImageID()},
 		AcceptedMediaTypes: []*string{aws.String(images.MediaTypeDockerSchema2Manifest)},
 	}
 
-	client := r.getClient(ecrSpec.Region)
+	client := r.getClient(ecrSpec.Region())
 
 	batchGetImageOutput, err := client.BatchGetImage(batchGetImageInput)
 	if err != nil {
@@ -99,7 +99,7 @@ func (r *ecrResolver) Fetcher(ctx context.Context, ref string) (remotes.Fetcher,
 		return nil, err
 	}
 	return &ecrFetcher{
-		client:  r.getClient(ecrSpec.Region),
+		client:  r.getClient(ecrSpec.Region()),
 		ecrSpec: ecrSpec,
 	}, nil
 }

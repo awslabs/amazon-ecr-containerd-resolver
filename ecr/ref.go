@@ -27,8 +27,6 @@ import (
 
 const (
 	refPrefix           = "ecr.aws/"
-	arnDelimiter        = ":"
-	arnPrefix           = "arn:"
 	repositoryDelimiter = "/"
 )
 
@@ -38,11 +36,9 @@ var (
 )
 
 type ECRSpec struct {
-	Partition  string
-	Region     string
-	Registry   string
 	Repository string
 	Object     string
+	arn        arn.ARN
 }
 
 // ParseRef parses an ECR reference into its constituent parts
@@ -51,21 +47,19 @@ func ParseRef(ref string) (ECRSpec, error) {
 		return ECRSpec{}, invalidARN
 	}
 	stripped := ref[len(refPrefix):]
-	spec, err := parseARN(stripped)
-	if err != nil {
-		return ECRSpec{}, err
-	}
+	return parseARN(stripped)
+}
 
-	if delimiterIndex := splitRe.FindStringIndex(spec.Repository); delimiterIndex != nil {
-		// This allows us to retain the @ to signify digests or shortend digests in
-		// the object.
-		spec.Object = spec.Repository[delimiterIndex[0]:]
-		if spec.Object[:1] == ":" {
-			spec.Object = spec.Object[1:]
-		}
-		spec.Repository = spec.Repository[:delimiterIndex[0]]
-	}
-	return spec, nil
+func (spec ECRSpec) Partition() string {
+	return spec.arn.Partition
+}
+
+func (spec ECRSpec) Region() string {
+	return spec.arn.Region
+}
+
+func (spec ECRSpec) Registry() string {
+	return spec.arn.AccountID
 }
 
 // parseARN parses an ECR ARN into its constituent parts
@@ -75,16 +69,31 @@ func parseARN(a string) (ECRSpec, error) {
 	if err != nil {
 		return ECRSpec{}, err
 	}
+
+	// remove label & digest
+	var object string
+	if delimiterIndex := splitRe.FindStringIndex(parsed.Resource); delimiterIndex != nil {
+		// This allows us to retain the @ to signify digests or shortend digests in
+		// the object.
+		object = parsed.Resource[delimiterIndex[0]:]
+		// trim leading :
+		if object[:1] == ":" {
+			object = object[1:]
+		}
+		parsed.Resource = parsed.Resource[:delimiterIndex[0]]
+	}
+
+	// strip "repository/" prefix
 	repositorySections := strings.SplitN(parsed.Resource, repositoryDelimiter, 2)
 	if len(repositorySections) != 2 {
 		return ECRSpec{}, invalidARN
 	}
 	return ECRSpec{
-		Partition:  parsed.Partition,
-		Region:     parsed.Region,
-		Registry:   parsed.AccountID,
+		arn:        parsed,
 		Repository: repositorySections[1],
+		Object:     object,
 	}, nil
+
 }
 
 // Canonical returns the canonical representation
@@ -101,11 +110,7 @@ func (spec ECRSpec) Canonical() string {
 
 // ARN returns the canonical representation of the ECR ARN
 func (spec ECRSpec) ARN() string {
-	return arnPrefix +
-		spec.Partition + arnDelimiter +
-		"ecr" + arnDelimiter +
-		spec.Region + arnDelimiter +
-		spec.Registry + arnDelimiter + "repository/" + spec.Repository
+	return spec.arn.String()
 }
 
 // Spec returns a reference.Spec

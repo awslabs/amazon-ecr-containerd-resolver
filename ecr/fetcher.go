@@ -69,7 +69,7 @@ func (f *ecrFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.Rea
 func (f *ecrFetcher) fetchManifest(ctx context.Context, desc ocispec.Descriptor) (io.ReadCloser, error) {
 	fmt.Printf("fetchManifest: desc%v\n", desc)
 	batchGetImageInput := &ecr.BatchGetImageInput{
-		RegistryId:         aws.String(f.ecrSpec.Registry),
+		RegistryId:         aws.String(f.ecrSpec.Registry()),
 		RepositoryName:     aws.String(f.ecrSpec.Repository),
 		ImageIds:           []*ecr.ImageIdentifier{f.ecrSpec.ImageID()},
 		AcceptedMediaTypes: []*string{aws.String(images.MediaTypeDockerSchema2Manifest)},
@@ -94,7 +94,7 @@ func (f *ecrFetcher) fetchManifest(ctx context.Context, desc ocispec.Descriptor)
 func (f *ecrFetcher) fetchLayer(ctx context.Context, desc ocispec.Descriptor) (io.ReadCloser, error) {
 	fmt.Printf("fetchLayer: desc=%v\n", desc)
 	getDownloadUrlForLayerInput := &ecr.GetDownloadUrlForLayerInput{
-		RegistryId:     aws.String(f.ecrSpec.Registry),
+		RegistryId:     aws.String(f.ecrSpec.Registry()),
 		RepositoryName: aws.String(f.ecrSpec.Repository),
 		LayerDigest:    aws.String(desc.Digest.String()),
 	}
