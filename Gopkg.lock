@@ -24,10 +24,10 @@
   revision = "0d9f544bb94aac29c185968483459ef74d6deb5d"
 
 [[projects]]
-  branch = "master"
   name = "github.com/containerd/containerd"
-  packages = [".","api/services/containers/v1","api/services/content/v1","api/services/diff/v1","api/services/events/v1","api/services/images/v1","api/services/namespaces/v1","api/services/snapshot/v1","api/services/tasks/v1","api/services/version/v1","api/types","api/types/task","containers","content","events","identifiers","images","log","metadata","mount","namespaces","plugin","reference","remotes","remotes/docker","remotes/docker/schema1","rootfs","services/content","services/diff","services/images","services/snapshot","snapshot"]
-  revision = "bd25543f5adf101b28bd12e91bcca6a676fb7298"
+  packages = [".","api/services/containers/v1","api/services/content/v1","api/services/diff/v1","api/services/events/v1","api/services/images/v1","api/services/namespaces/v1","api/services/snapshot/v1","api/services/tasks/v1","api/services/version/v1","api/types","api/types/task","containers","content","errdefs","events","filters","identifiers","images","linux/runcopts","log","metadata","mount","namespaces","plugin","reference","remotes","remotes/docker","remotes/docker/schema1","rootfs","runtime","services/content","services/diff","services/images","services/snapshot","snapshot","typeurl"]
+  revision = "8eadcb8c2899bc7300b8e4822e3b8d5cfbd74ef2"
+  version = "v1.0.0-alpha0"
 
 [[projects]]
   branch = "master"
@@ -52,10 +52,9 @@
   revision = "060d7da055ba6ec5ea7a31f116332fe5efa04ce0"
 
 [[projects]]
-  branch = "master"
   name = "github.com/gogo/protobuf"
   packages = ["gogoproto","proto","protoc-gen-gogo/descriptor","sortkeys","types"]
-  revision = "70d0d0c9d3f673c850388c410e27ebb77ee21578"
+  revision = "d2e1ade2d719b78fe5b061b4c18a9f7111b5bdc8"
 
 [[projects]]
   branch = "master"
@@ -84,7 +83,7 @@
 [[projects]]
   name = "github.com/opencontainers/runtime-spec"
   packages = ["specs-go"]
-  revision = "198f23f827eea397d4331d7eb048d9d4c7ff7bee"
+  revision = "96de01bbb42c7af89bff100e10a9f0fb62e75bfb"
 
 [[projects]]
   branch = "master"
@@ -141,6 +140,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "dd05405b4c49af7d0b1d965b20e257fb917da43008c37ba624da310b7819d48d"
+  inputs-digest = "de9d6a3a15f1e2f2a702a01d0a935db4fc936f78c8e309158261ac6106ac9e09"
   solver-name = "gps-cdcl"
   solver-version = 1
