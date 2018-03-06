@@ -35,8 +35,8 @@ $(LOCAL_BINARY): $(SOURCES) $(VENDORDIR)
 vendor: $(VENDORDIR)
 
 $(VENDORDIR): $(DEP)
-	which dep || go get -u github.com/golang/dep/...
-	dep ensure
+	which dep || go get -u github.com/golang/dep/cmd/dep
+	dep ensure -vendor-only
 
 .PHONY: test
 test: $(SOURCES) $(VENDORDIR)
