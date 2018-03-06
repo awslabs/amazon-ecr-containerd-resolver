@@ -4,142 +4,301 @@
 [[projects]]
   name = "github.com/Microsoft/go-winio"
   packages = ["."]
-  revision = "ce2922f643c8fd76b46cadc7f404a06282678b34"
-
-[[projects]]
-  name = "github.com/Sirupsen/logrus"
-  packages = ["."]
-  revision = "3ec0642a7fb6488f65b06f9040adc67e3990296a"
+  revision = "7da180ee92d8bd8bb8c37fc560e673e6557c392f"
+  version = "v0.4.7"
 
 [[projects]]
   branch = "master"
   name = "github.com/aws/aws-sdk-go"
-  packages = ["aws","aws/awserr","aws/awsutil","aws/client","aws/client/metadata","aws/corehandlers","aws/credentials","aws/credentials/ec2rolecreds","aws/credentials/endpointcreds","aws/credentials/stscreds","aws/defaults","aws/ec2metadata","aws/endpoints","aws/request","aws/session","aws/signer/v4","private/protocol","private/protocol/json/jsonutil","private/protocol/jsonrpc","private/protocol/query","private/protocol/query/queryutil","private/protocol/rest","private/protocol/xml/xmlutil","service/ecr","service/ecr/ecriface","service/sts"]
-  revision = "fed27f4bd16c8c63d01003b978e5bc85fe727519"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/boltdb/bolt"
-  packages = ["."]
-  revision = "0d9f544bb94aac29c185968483459ef74d6deb5d"
+  packages = [
+    "aws",
+    "aws/awserr",
+    "aws/awsutil",
+    "aws/client",
+    "aws/client/metadata",
+    "aws/corehandlers",
+    "aws/credentials",
+    "aws/credentials/ec2rolecreds",
+    "aws/credentials/endpointcreds",
+    "aws/credentials/stscreds",
+    "aws/defaults",
+    "aws/ec2metadata",
+    "aws/endpoints",
+    "aws/request",
+    "aws/session",
+    "aws/signer/v4",
+    "internal/sdkrand",
+    "internal/shareddefaults",
+    "private/protocol",
+    "private/protocol/json/jsonutil",
+    "private/protocol/jsonrpc",
+    "private/protocol/query",
+    "private/protocol/query/queryutil",
+    "private/protocol/rest",
+    "private/protocol/xml/xmlutil",
+    "service/ecr",
+    "service/ecr/ecriface",
+    "service/sts"
+  ]
+  revision = "99e4f37f2b87e2fd934346c6423a0fad945fa69a"
 
 [[projects]]
   name = "github.com/containerd/containerd"
-  packages = [".","api/services/containers/v1","api/services/content/v1","api/services/diff/v1","api/services/events/v1","api/services/images/v1","api/services/namespaces/v1","api/services/snapshot/v1","api/services/tasks/v1","api/services/version/v1","api/types","api/types/task","containers","content","errdefs","events","filters","identifiers","images","linux/runcopts","log","metadata","mount","namespaces","plugin","reference","remotes","remotes/docker","remotes/docker/schema1","rootfs","runtime","services/content","services/diff","services/images","services/snapshot","snapshot","typeurl"]
-  revision = "8eadcb8c2899bc7300b8e4822e3b8d5cfbd74ef2"
-  version = "v1.0.0-alpha0"
+  packages = [
+    ".",
+    "api/services/containers/v1",
+    "api/services/content/v1",
+    "api/services/diff/v1",
+    "api/services/events/v1",
+    "api/services/images/v1",
+    "api/services/introspection/v1",
+    "api/services/leases/v1",
+    "api/services/namespaces/v1",
+    "api/services/snapshots/v1",
+    "api/services/tasks/v1",
+    "api/services/version/v1",
+    "api/types",
+    "api/types/task",
+    "cio",
+    "containers",
+    "content",
+    "dialer",
+    "diff",
+    "errdefs",
+    "events",
+    "events/exchange",
+    "filters",
+    "fs",
+    "identifiers",
+    "images",
+    "leases",
+    "linux/runctypes",
+    "log",
+    "mount",
+    "namespaces",
+    "oci",
+    "platforms",
+    "plugin",
+    "protobuf/google/rpc",
+    "reference",
+    "remotes",
+    "remotes/docker",
+    "remotes/docker/schema1",
+    "rootfs",
+    "snapshots",
+    "sys"
+  ]
+  revision = "cfd04396dc68220d1cecbe686a6cc3aa5ce3667c"
+  version = "v1.0.2"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/containerd/continuity"
+  packages = ["sysx"]
+  revision = "d8fb8589b0e8e85b8c8bbaa8840226d0dfeb7371"
 
 [[projects]]
   branch = "master"
   name = "github.com/containerd/fifo"
   packages = ["."]
-  revision = "69b99525e472735860a5269b75af1970142b3062"
+  revision = "fbfb6a11ec671efbe94ad1c12c2e98773f19e1e6"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/containerd/typeurl"
+  packages = ["."]
+  revision = "f6943554a7e7e88b3c14aad190bf05932da84788"
 
 [[projects]]
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
-  revision = "6d212800a42e8ab5c146b8ace3490ee17e5225f9"
+  revision = "346938d642f2ec3594ed81d874461961cd0faa76"
+  version = "v1.1.0"
 
 [[projects]]
   branch = "master"
   name = "github.com/docker/go-events"
   packages = ["."]
-  revision = "aa2e3b613fbbfdddbe055a7b9e3ce271cfd83eca"
+  revision = "9461782956ad83b30282bf90e31fa6a70c255ba9"
 
 [[projects]]
   name = "github.com/go-ini/ini"
   packages = ["."]
-  revision = "060d7da055ba6ec5ea7a31f116332fe5efa04ce0"
+  revision = "32e4c1e6bc4e7d0d8451aa6b75200d19e37a536a"
+  version = "v1.32.0"
 
 [[projects]]
   name = "github.com/gogo/protobuf"
-  packages = ["gogoproto","proto","protoc-gen-gogo/descriptor","sortkeys","types"]
-  revision = "d2e1ade2d719b78fe5b061b4c18a9f7111b5bdc8"
+  packages = [
+    "proto",
+    "sortkeys",
+    "types"
+  ]
+  revision = "1adfc126b41513cc696b209667c8656ea7aac67c"
+  version = "v1.0.0"
 
 [[projects]]
-  branch = "master"
   name = "github.com/golang/protobuf"
-  packages = ["proto","ptypes/any","ptypes/empty"]
-  revision = "e325f446bebc2998605911c0a2650d9920361d4a"
+  packages = [
+    "proto",
+    "ptypes",
+    "ptypes/any",
+    "ptypes/duration",
+    "ptypes/timestamp"
+  ]
+  revision = "925541529c1fa6821df4e44ce2723319eb2be768"
+  version = "v1.0.0"
 
 [[projects]]
   name = "github.com/jmespath/go-jmespath"
   packages = ["."]
-  revision = "3433f3ea46d9f8019119e7dd41274e112a2359a9"
-  version = "0.2.2"
+  revision = "0b12d6b5"
 
 [[projects]]
-  branch = "master"
   name = "github.com/opencontainers/go-digest"
   packages = ["."]
   revision = "279bed98673dd5bef374d3b6e4b09e2af76183bf"
+  version = "v1.0.0-rc1"
 
 [[projects]]
   branch = "master"
   name = "github.com/opencontainers/image-spec"
-  packages = ["identity","specs-go","specs-go/v1"]
-  revision = "df6f3c57dafbbf39d98c24fa6ab509183cfa3efc"
+  packages = [
+    "identity",
+    "specs-go",
+    "specs-go/v1"
+  ]
+  revision = "149252121d044fddff670adcdc67f33148e16226"
+
+[[projects]]
+  name = "github.com/opencontainers/runc"
+  packages = [
+    "libcontainer/system",
+    "libcontainer/user"
+  ]
+  revision = "baf6536d6259209c3edfa2b22237af82942d3dfa"
+  version = "v0.1.1"
 
 [[projects]]
   name = "github.com/opencontainers/runtime-spec"
   packages = ["specs-go"]
-  revision = "96de01bbb42c7af89bff100e10a9f0fb62e75bfb"
+  revision = "4e3b9264a330d094b0386c3703c5f379119711e8"
+  version = "v1.0.1"
 
 [[projects]]
   branch = "master"
   name = "github.com/pkg/errors"
   packages = ["."]
-  revision = "c605e284fe17294bda444b34710735b29d1a9d90"
+  revision = "30136e27e2ac8d167177e8a583aa4c3fea5be833"
 
 [[projects]]
   name = "github.com/pmezard/go-difflib"
   packages = ["difflib"]
   revision = "792786c7400a136282c1664665ae0a8db921c6c2"
+  version = "v1.0.0"
+
+[[projects]]
+  name = "github.com/sirupsen/logrus"
+  packages = ["."]
+  revision = "d682213848ed68c0a260ca37d6dd5ace8423f5ba"
+  version = "v1.0.4"
 
 [[projects]]
   branch = "master"
   name = "github.com/stretchr/testify"
   packages = ["assert"]
-  revision = "976c720a22c8eb4eb6a0b4348ad85ad12491a506"
+  revision = "b89eecf5ca5db6d3ba60b237ffe3df7bafb7662f"
+
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/crypto"
+  packages = ["ssh/terminal"]
+  revision = "91a49db82a88618983a78a06c1cbd4e00ab749ab"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/net"
-  packages = ["context","context/ctxhttp","http2","http2/hpack","idna","internal/timeseries","lex/httplex","trace"]
-  revision = "ddf80d0970594e2e4cccf5a98861cad3d9eaa4cd"
+  packages = [
+    "context",
+    "context/ctxhttp",
+    "http2",
+    "http2/hpack",
+    "idna",
+    "internal/timeseries",
+    "lex/httplex",
+    "trace"
+  ]
+  revision = "22ae77b79946ea320088417e4d50825671d82d57"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sync"
   packages = ["errgroup"]
-  revision = "f52d1811a62927559de87708c8913c1650ce4f26"
-
-[[projects]]
-  name = "golang.org/x/sys"
-  packages = ["unix","windows"]
-  revision = "62bee037599929a6e9146f29d10dd5208c43507d"
+  revision = "fd80eb99c8f653c847d294a001bdf2a3a6f768f5"
 
 [[projects]]
   branch = "master"
+  name = "golang.org/x/sys"
+  packages = [
+    "unix",
+    "windows"
+  ]
+  revision = "dd2ff4accc098aceecb86b36eaa7829b2a17b1c9"
+
+[[projects]]
   name = "golang.org/x/text"
-  packages = ["internal/gen","internal/triegen","internal/ucd","secure/bidirule","transform","unicode/bidi","unicode/cldr","unicode/norm","unicode/rangetable"]
-  revision = "3491b61b9edc56653ad4333e605e2908e46a036b"
+  packages = [
+    "collate",
+    "collate/build",
+    "internal/colltab",
+    "internal/gen",
+    "internal/tag",
+    "internal/triegen",
+    "internal/ucd",
+    "language",
+    "secure/bidirule",
+    "transform",
+    "unicode/bidi",
+    "unicode/cldr",
+    "unicode/norm",
+    "unicode/rangetable"
+  ]
+  revision = "f21a4dfb5e38f5895301dc265a8def02365cc3d0"
+  version = "v0.3.0"
 
 [[projects]]
   branch = "master"
   name = "google.golang.org/genproto"
   packages = ["googleapis/rpc/status"]
-  revision = "aa2eb687b4d3e17154372564ad8d6bf11c3cf21f"
+  revision = "2c5e7ac708aaa719366570dd82bda44541ca2a63"
 
 [[projects]]
-  branch = "master"
   name = "google.golang.org/grpc"
-  packages = [".","codes","credentials","grpclb/grpc_lb_v1","grpclog","health/grpc_health_v1","internal","keepalive","metadata","naming","peer","stats","status","tap","transport"]
-  revision = "c6b96641801f2f7fd8085f01bff103564d84bb57"
+  packages = [
+    ".",
+    "balancer",
+    "codes",
+    "connectivity",
+    "credentials",
+    "grpclb/grpc_lb_v1/messages",
+    "grpclog",
+    "health/grpc_health_v1",
+    "internal",
+    "keepalive",
+    "metadata",
+    "naming",
+    "peer",
+    "resolver",
+    "stats",
+    "status",
+    "tap",
+    "transport"
+  ]
+  revision = "5ffe3083946d5603a0578721101dc8165b1d5b5f"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "de9d6a3a15f1e2f2a702a01d0a935db4fc936f78c8e309158261ac6106ac9e09"
+  inputs-digest = "dbc361f40bb7335641212e8c4c4c7090859de0b93466c6b97779eb18c43f076a"
   solver-name = "gps-cdcl"
   solver-version = 1

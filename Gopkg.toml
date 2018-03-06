@@ -71,12 +71,8 @@
   name = "github.com/aws/aws-sdk-go"
 
 [[constraint]]
-  version = "1.0.0-alpha0"
+  version = "1.0.2"
   name = "github.com/containerd/containerd"
-
-[[constraint]]
-  name = "github.com/jmespath/go-jmespath"
-  version = "0.2.2"
 
 [[constraint]]
   branch = "master"
@@ -86,13 +82,10 @@
   branch = "master"
   name = "github.com/opencontainers/image-spec"
 
-[[override]] # see https://github.com/containerd/containerd/blob/v1.0.0-alpha0/vendor.conf#L17
-  name = "github.com/opencontainers/runtime-spec"
-  revision = "96de01bbb42c7af89bff100e10a9f0fb62e75bfb"
-
-[[override]] # see https://github.com/containerd/containerd/blob/v1.0.0-alpha0/vendor.conf#L15
-  name = "github.com/gogo/protobuf"
-  revision = "d2e1ade2d719b78fe5b061b4c18a9f7111b5bdc8"
+[[override]] # see https://github.com/containerd/containerd/blob/v1.0.2/vendor.conf#L28
+  name = "google.golang.org/grpc"
+  #version = "1.7.2"
+  revision = "5ffe3083946d5603a0578721101dc8165b1d5b5f"
 
 [[constraint]]
   branch = "master"

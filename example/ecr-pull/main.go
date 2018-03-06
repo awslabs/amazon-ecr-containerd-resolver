@@ -37,6 +37,7 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+	defer client.Close()
 
 	awsSession, err := session.NewSession()
 	if err != nil {
