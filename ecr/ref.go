@@ -19,10 +19,10 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/arn"
 	"github.com/aws/aws-sdk-go/service/ecr"
 	"github.com/containerd/containerd/reference"
 	"github.com/pkg/errors"
-	"github.com/samuelkarp/amazon-ecr-containerd-resolver/ecr/arn"
 )
 
 const (

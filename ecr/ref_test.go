@@ -18,7 +18,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/samuelkarp/amazon-ecr-containerd-resolver/ecr/arn"
+	"github.com/aws/aws-sdk-go/aws/arn"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -34,7 +34,7 @@ func TestParseRef(t *testing.T) {
 		},
 		{
 			ref: "ecr.aws/arn:nope",
-			err: arn.ARNError(errors.New("arn: not enough sections")),
+			err: errors.New("arn: not enough sections"),
 		},
 		{
 			ref: "arn:aws:ecr:us-west-2:123456789012:repository/foo/bar",
