@@ -25,18 +25,25 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ecr"
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/remotes"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context/ctxhttp"
 )
 
+// ecrFetcher implements the containerd remotes.Fetcher interface and can be
+// used to pull images from Amazon ECR.
 type ecrFetcher struct {
 	ecrBase
 }
 
+var _ remotes.Fetcher = (*ecrFetcher)(nil)
+
 type nopCloser struct {
 	io.Reader
 }
+
+var _ io.Closer = (*nopCloser)(nil)
 
 func (nopCloser) Close() error { return nil }
 

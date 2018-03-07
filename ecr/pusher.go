@@ -24,6 +24,7 @@ import (
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/reference"
+	"github.com/containerd/containerd/remotes"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
@@ -32,9 +33,13 @@ var (
 	errLayerNotFound = errors.New("ecr: layer not found")
 )
 
+// ecrPusher implements the containerd remotes.Pusher interface and can be used
+// to push images to Amazon ECR.
 type ecrPusher struct {
 	ecrBase
 }
+
+var _ remotes.Pusher = (*ecrPusher)(nil)
 
 func (p ecrPusher) Push(ctx context.Context, desc ocispec.Descriptor) (content.Writer, error) {
 	fmt.Printf("push: desc=%v\n", desc)
