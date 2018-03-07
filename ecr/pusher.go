@@ -25,6 +25,7 @@ import (
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes"
+	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
@@ -40,6 +41,10 @@ type ecrPusher struct {
 }
 
 var _ remotes.Pusher = (*ecrPusher)(nil)
+
+type manifestWriter struct {}
+
+var _ content.Writer = (*manifestWriter)(nil)
 
 func (p ecrPusher) Push(ctx context.Context, desc ocispec.Descriptor) (content.Writer, error) {
 	fmt.Printf("push: desc=%v\n", desc)
@@ -68,9 +73,8 @@ func (p ecrPusher) pushManifest(ctx context.Context, desc ocispec.Descriptor) (c
 		fmt.Println("exists")
 		return nil, errors.Wrapf(errdefs.ErrAlreadyExists, "content %v on remote", desc.Digest)
 	}
-
-	// TODO manifest push
-	return nil, errors.New("pushManifest: not implemented")
+	
+	return &manifestWriter{}, nil
 }
 
 func (p ecrPusher) checkManifestExistence(ctx context.Context, desc ocispec.Descriptor) (bool, error) {
@@ -129,4 +133,31 @@ func (p ecrPusher) checkBlobExistence(ctx context.Context, desc ocispec.Descript
 	}
 
 	return true, nil
+}
+
+func (mw manifestWriter) Write(p []byte) (int, error) {
+	fmt.Printf("mw.Write: b=%s\n", string(p))
+	return 0, errors.New("mw.Write: not implemented")
+}
+
+func (mw manifestWriter) Close() error {
+	return errors.New("mw.Close: not implemented")
+}
+
+func (mw manifestWriter) Digest() digest.Digest {
+	return ""
+}
+
+func (mw manifestWriter) Commit(ctx context.Context, size int64, expected digest.Digest, opts ...content.Opt) error {
+	fmt.Printf("mw.Commit: size=%d expected=%s\n", size, expected)
+	return errors.New("mw.Commit: not implemented")
+}
+
+func (mw manifestWriter) Status() (content.Status, error) {
+	return content.Status{}, errors.New("mw.Status: not implemented")
+}
+
+func (mw manifestWriter) Truncate(size int64) error {
+	fmt.Printf("mw.Truncate: size=%d\n", size)
+	return errors.New("mw.Truncate: not implemented")
 }
