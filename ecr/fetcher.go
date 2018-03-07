@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"strings"
 
@@ -38,14 +39,6 @@ type ecrFetcher struct {
 }
 
 var _ remotes.Fetcher = (*ecrFetcher)(nil)
-
-type nopCloser struct {
-	io.Reader
-}
-
-var _ io.Closer = (*nopCloser)(nil)
-
-func (nopCloser) Close() error { return nil }
 
 func (f *ecrFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.ReadCloser, error) {
 	fmt.Printf("fetch: desc=%v\n", desc)
@@ -79,7 +72,7 @@ func (f *ecrFetcher) fetchManifest(ctx context.Context, desc ocispec.Descriptor)
 	if image == nil {
 		return nil, errors.New("fetchManifest: nil image")
 	}
-	return nopCloser{bytes.NewReader([]byte(aws.StringValue(image.ImageManifest)))}, nil
+	return ioutil.NopCloser(bytes.NewReader([]byte(aws.StringValue(image.ImageManifest)))), nil
 }
 
 func (f *ecrFetcher) fetchLayer(ctx context.Context, desc ocispec.Descriptor) (io.ReadCloser, error) {
