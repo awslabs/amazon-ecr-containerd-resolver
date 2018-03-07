@@ -15,6 +15,7 @@
 package ecr
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 
@@ -41,10 +42,6 @@ type ecrPusher struct {
 }
 
 var _ remotes.Pusher = (*ecrPusher)(nil)
-
-type manifestWriter struct {}
-
-var _ content.Writer = (*manifestWriter)(nil)
 
 func (p ecrPusher) Push(ctx context.Context, desc ocispec.Descriptor) (content.Writer, error) {
 	fmt.Printf("push: desc=%v\n", desc)
@@ -73,8 +70,10 @@ func (p ecrPusher) pushManifest(ctx context.Context, desc ocispec.Descriptor) (c
 		fmt.Println("exists")
 		return nil, errors.Wrapf(errdefs.ErrAlreadyExists, "content %v on remote", desc.Digest)
 	}
-	
-	return &manifestWriter{}, nil
+
+	return &manifestWriter{
+		base: &p.ecrBase,
+	}, nil
 }
 
 func (p ecrPusher) checkManifestExistence(ctx context.Context, desc ocispec.Descriptor) (bool, error) {
@@ -135,29 +134,64 @@ func (p ecrPusher) checkBlobExistence(ctx context.Context, desc ocispec.Descript
 	return true, nil
 }
 
-func (mw manifestWriter) Write(p []byte) (int, error) {
-	fmt.Printf("mw.Write: b=%s\n", string(p))
-	return 0, errors.New("mw.Write: not implemented")
+
+type manifestWriter struct {
+	base *ecrBase
+	buf bytes.Buffer
 }
 
-func (mw manifestWriter) Close() error {
+var _ content.Writer = (*manifestWriter)(nil)
+
+func (mw *manifestWriter) Write(p []byte) (int, error) {
+	fmt.Printf("mw.Write: b=%s\n", string(p))
+	return mw.buf.Write(p)
+}
+
+func (mw *manifestWriter) Close() error {
 	return errors.New("mw.Close: not implemented")
 }
 
-func (mw manifestWriter) Digest() digest.Digest {
+func (mw *manifestWriter) Digest() digest.Digest {
 	return ""
 }
 
-func (mw manifestWriter) Commit(ctx context.Context, size int64, expected digest.Digest, opts ...content.Opt) error {
+func (mw *manifestWriter) Commit(ctx context.Context, size int64, expected digest.Digest, opts ...content.Opt) error {
 	fmt.Printf("mw.Commit: size=%d expected=%s\n", size, expected)
-	return errors.New("mw.Commit: not implemented")
+	manifest := mw.buf.String()
+	fmt.Println(manifest)
+	ecrSpec := mw.base.ecrSpec
+	tag, _ := ecrSpec.TagDigest()
+	putImageInput := &ecr.PutImageInput{
+		RegistryId: aws.String(ecrSpec.Registry()),
+		RepositoryName: aws.String(ecrSpec.Repository),
+		ImageTag: aws.String(tag),
+		ImageManifest: aws.String(manifest),
+	}
+	fmt.Printf("%v\n",putImageInput)
+
+	output, err := mw.base.client.PutImage(putImageInput)
+	if err != nil {
+		return errors.Wrapf(err, "ecr: failed to put manifest: %s", ecrSpec)
+	}
+
+	if output == nil {
+		return errors.Errorf("ecr: failed to put manifest, nil output: %s", ecrSpec)
+	}
+	actual := aws.StringValue(output.Image.ImageId.ImageDigest)
+	if actual != expected.String() {
+		return errors.Errorf("got digest %s, expected %s", actual, expected)
+	}
+	return nil
 }
 
-func (mw manifestWriter) Status() (content.Status, error) {
-	return content.Status{}, errors.New("mw.Status: not implemented")
+func (mw *manifestWriter) Status() (content.Status, error) {
+	fmt.Println("mw.Status")
+	// TODO implement?
+	// need at least ref to be populated for good error messages
+	return content.Status{}, nil
 }
 
-func (mw manifestWriter) Truncate(size int64) error {
+func (mw *manifestWriter) Truncate(size int64) error {
 	fmt.Printf("mw.Truncate: size=%d\n", size)
 	return errors.New("mw.Truncate: not implemented")
 }

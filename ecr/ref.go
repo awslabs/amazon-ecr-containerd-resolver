@@ -22,6 +22,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/arn"
 	"github.com/aws/aws-sdk-go/service/ecr"
 	"github.com/containerd/containerd/reference"
+	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )
 
@@ -121,12 +122,16 @@ func (spec ECRSpec) Spec() reference.Spec {
 // ImageID returns an ecr.ImageIdentifier suitable for using in calls to ECR
 func (spec ECRSpec) ImageID() *ecr.ImageIdentifier {
 	imageID := ecr.ImageIdentifier{}
-	tag, dgst := reference.SplitObject(spec.Object)
+	tag, digest := spec.TagDigest()
 	if tag != "" {
 		imageID.ImageTag = aws.String(tag)
 	}
-	if dgst != "" {
-		imageID.ImageDigest = aws.String(string(dgst))
+	if digest != "" {
+		imageID.ImageDigest = aws.String(string(digest))
 	}
 	return &imageID
+}
+
+func (spec ECRSpec) TagDigest() (string, digest.Digest) {
+	return reference.SplitObject(spec.Object)
 }
