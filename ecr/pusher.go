@@ -44,40 +44,32 @@ func (p ecrPusher) Push(ctx context.Context, desc ocispec.Descriptor) (content.W
 		ocispec.MediaTypeImageManifest,
 		images.MediaTypeDockerSchema2Manifest,
 		images.MediaTypeDockerSchema1Manifest:
-		// manifest
-		fmt.Println("manifest")
-		exists, err := p.checkManifestExistence(ctx, desc)
-		if err != nil {
-			fmt.Println(err)
-			return nil, err
-		}
-		if exists {
-			fmt.Println("exists")
-			return nil, errors.Wrapf(errdefs.ErrAlreadyExists, "content %v on remote", desc.Digest)
-		}
+		return p.pushManifest(ctx, desc)
 	default:
-		// blob
-		exists, err := p.checkBlobExistence(ctx, desc)
-		if err != nil {
-			fmt.Println(err)
-			return nil, err
-		}
-		if exists {
-			fmt.Println("exists")
-			return nil, errors.Wrapf(errdefs.ErrAlreadyExists, "content %v on remote", desc.Digest)
-		}
+		return p.pushBlob(ctx, desc)
 	}
 
-	// TODO: Manifest push
-	// TODO: Blob push
+	return nil, unimplemented
+}
 
-	return nil, errors.New("push: not implemented")
+func (p ecrPusher) pushManifest(ctx context.Context, desc ocispec.Descriptor) (content.Writer, error) {
+	fmt.Printf("pushManifest: desc=%v\n", desc)
+	exists, err := p.checkManifestExistence(ctx, desc)
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+	if exists {
+		fmt.Println("exists")
+		return nil, errors.Wrapf(errdefs.ErrAlreadyExists, "content %v on remote", desc.Digest)
+	}
+
+	// TODO manifest push
+	return nil, errors.New("pushManifest: not implemented")
 }
 
 func (p ecrPusher) checkManifestExistence(ctx context.Context, desc ocispec.Descriptor) (bool, error) {
-	image, err := p.getManifest(ctx, &ecr.ImageIdentifier{
-		ImageDigest: aws.String(desc.Digest.String()),
-	})
+	image, err := p.getManifest(ctx)
 	if err != nil {
 		if err == errImageNotFound {
 			return false, nil
@@ -90,6 +82,22 @@ func (p ecrPusher) checkManifestExistence(ctx context.Context, desc ocispec.Desc
 
 	found := desc.Digest.String() == aws.StringValue(image.ImageId.ImageDigest)
 	return found, nil
+}
+
+func (p ecrPusher) pushBlob(ctx context.Context, desc ocispec.Descriptor) (content.Writer, error) {
+	fmt.Printf("pushBlob: desc=%v\n", desc)
+	exists, err := p.checkBlobExistence(ctx, desc)
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+	if exists {
+		fmt.Println("exists")
+		return nil, errors.Wrapf(errdefs.ErrAlreadyExists, "content %v on remote", desc.Digest)
+	}
+
+	// TODO blob push
+	return nil, errors.New("pushBlob: not implemented")
 }
 
 func (p ecrPusher) checkBlobExistence(ctx context.Context, desc ocispec.Descriptor) (bool, error) {

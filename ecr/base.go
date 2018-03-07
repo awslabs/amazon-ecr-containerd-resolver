@@ -35,16 +35,17 @@ type ecrBase struct {
 	ecrSpec ECRSpec
 }
 
-func (f *ecrBase) getManifest(ctx context.Context, imageIdentifier *ecr.ImageIdentifier) (*ecr.Image, error) {
+func (b *ecrBase) getManifest(ctx context.Context) (*ecr.Image, error) {
+	imageIdentifier := b.ecrSpec.ImageID()
 	fmt.Printf("getManifest: imageIdentifier=%v\n", imageIdentifier)
 	batchGetImageInput := &ecr.BatchGetImageInput{
-		RegistryId:         aws.String(f.ecrSpec.Registry()),
-		RepositoryName:     aws.String(f.ecrSpec.Repository),
+		RegistryId:         aws.String(b.ecrSpec.Registry()),
+		RepositoryName:     aws.String(b.ecrSpec.Repository),
 		ImageIds:           []*ecr.ImageIdentifier{imageIdentifier},
 		AcceptedMediaTypes: []*string{aws.String(images.MediaTypeDockerSchema2Manifest)},
 	}
 
-	batchGetImageOutput, err := f.client.BatchGetImage(batchGetImageInput)
+	batchGetImageOutput, err := b.client.BatchGetImage(batchGetImageInput)
 	if err != nil {
 		fmt.Println(err)
 		return nil, err
