@@ -24,17 +24,14 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ecr"
-	"github.com/aws/aws-sdk-go/service/ecr/ecriface"
 	"github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/reference"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context/ctxhttp"
 )
 
 type ecrFetcher struct {
-	client  ecriface.ECRAPI
-	ecrSpec ECRSpec
+	ecrBase
 }
 
 type nopCloser struct {
@@ -68,28 +65,14 @@ func (f *ecrFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.Rea
 }
 
 func (f *ecrFetcher) fetchManifest(ctx context.Context, desc ocispec.Descriptor) (io.ReadCloser, error) {
-	fmt.Printf("fetchManifest: desc%v\n", desc)
-	batchGetImageInput := &ecr.BatchGetImageInput{
-		RegistryId:         aws.String(f.ecrSpec.Registry()),
-		RepositoryName:     aws.String(f.ecrSpec.Repository),
-		ImageIds:           []*ecr.ImageIdentifier{f.ecrSpec.ImageID()},
-		AcceptedMediaTypes: []*string{aws.String(images.MediaTypeDockerSchema2Manifest)},
-	}
-
-	batchGetImageOutput, err := f.client.BatchGetImage(batchGetImageInput)
+	image, err := f.getManifest(ctx, f.ecrSpec.ImageID())
 	if err != nil {
-		fmt.Println(err)
 		return nil, err
 	}
-	fmt.Println(batchGetImageOutput)
-
-	var ecrImage *ecr.Image
-	if len(batchGetImageOutput.Images) != 1 {
-		fmt.Println("what")
-		return nil, reference.ErrInvalid
+	if image == nil {
+		return nil, errors.New("fetchManifest: nil image")
 	}
-	ecrImage = batchGetImageOutput.Images[0]
-	return nopCloser{bytes.NewReader([]byte(aws.StringValue(ecrImage.ImageManifest)))}, nil
+	return nopCloser{bytes.NewReader([]byte(aws.StringValue(image.ImageManifest)))}, nil
 }
 
 func (f *ecrFetcher) fetchLayer(ctx context.Context, desc ocispec.Descriptor) (io.ReadCloser, error) {

@@ -17,8 +17,10 @@ all: build
 
 SOURCEDIR=./
 SOURCES := $(shell find $(SOURCEDIR) -name '*.go' | grep -v './vendor')
-EXAMPLEDIR=$(SOURCEDIR)/example/ecr-pull
-LOCAL_BINARY=$(ROOT)/bin/ecr-pull
+PULLDIR=$(SOURCEDIR)/example/ecr-pull
+PULL_BINARY=$(ROOT)/bin/ecr-pull
+PUSHDIR=$(SOURCEDIR)/example/ecr-push
+PUSH_BINARY=$(ROOT)/bin/ecr-push
 
 VENDORDIR=$(ROOT)/vendor
 DEP=Gopkg.toml
@@ -26,10 +28,13 @@ LOCK=Gopkg.lock
 
 
 .PHONY: build
-build: $(LOCAL_BINARY)
+build: $(PULL_BINARY) $(PUSH_BINARY)
 
-$(LOCAL_BINARY): $(SOURCES) $(VENDORDIR)
-	cd $(EXAMPLEDIR) && go build -o $(LOCAL_BINARY) .
+$(PULL_BINARY): $(SOURCES) $(VENDORDIR)
+	cd $(PULLDIR) && go build -o $(PULL_BINARY) .
+
+$(PUSH_BINARY): $(SOURCES) $(VENDORDIR)
+	cd $(PUSHDIR) && go build -o $(PUSH_BINARY) .
 
 .PHONY: vendor
 vendor: $(VENDORDIR)
@@ -44,4 +49,5 @@ test: $(SOURCES) $(VENDORDIR)
 
 .PHONY: clean
 clean:
-	@rm $(LOCAL_BINARY) ||:
+	@rm $(PULL_BINARY) ||:
+	@rm $(PUSH_BINARY) ||:

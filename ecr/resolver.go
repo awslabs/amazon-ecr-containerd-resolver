@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -81,6 +82,7 @@ func (r *ecrResolver) Resolve(ctx context.Context, ref string) (string, ocispec.
 	desc := ocispec.Descriptor{
 		Digest:    digest.Digest(aws.StringValue(ecrImage.ImageId.ImageDigest)),
 		MediaType: mediaType,
+		Size:      int64(len(aws.StringValue(ecrImage.ImageManifest))),
 	}
 
 	return ecrSpec.Canonical(), desc, nil
@@ -130,12 +132,30 @@ func (r *ecrResolver) Fetcher(ctx context.Context, ref string) (remotes.Fetcher,
 		return nil, err
 	}
 	return &ecrFetcher{
-		client:  r.getClient(ecrSpec.Region()),
-		ecrSpec: ecrSpec,
+		ecrBase{
+			client:  r.getClient(ecrSpec.Region()),
+			ecrSpec: ecrSpec,
+		},
 	}, nil
 }
 
 func (r *ecrResolver) Pusher(ctx context.Context, ref string) (remotes.Pusher, error) {
 	fmt.Printf("pusher: %s\n", ref)
-	return nil, unimplemented
+	ecrSpec, err := ParseRef(ref)
+	if err != nil {
+		return nil, err
+	}
+	// TODO block pushing by digest since that's not allowed
+	// see containerd/remotes/docker/resolver.go:218
+
+	if ecrSpec.Object != "" && strings.Contains(ecrSpec.Object, "@") {
+		return nil, errors.New("pusher: cannot use digest reference for push location")
+	}
+
+	return &ecrPusher{
+		ecrBase{
+			client:  r.getClient(ecrSpec.Region()),
+			ecrSpec: ecrSpec,
+		},
+	}, nil
 }
