@@ -17,17 +17,18 @@ package ecr
 import (
 	"bytes"
 	"context"
-	"fmt"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ecr"
 	"github.com/containerd/containerd/content"
+	"github.com/containerd/containerd/log"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
 type manifestWriter struct {
+	ctx  context.Context
 	base *ecrBase
 	desc ocispec.Descriptor
 	buf  bytes.Buffer
@@ -36,12 +37,12 @@ type manifestWriter struct {
 var _ content.Writer = (*manifestWriter)(nil)
 
 func (mw *manifestWriter) Write(b []byte) (int, error) {
-	fmt.Printf("mw.Write: len(b)=%d\n", len(b))
+	log.G(mw.ctx).WithField("len(b)", len(b)).Debug("ecr.manifest.write")
 	return mw.buf.Write(b)
 }
 
 func (mw *manifestWriter) Close() error {
-	return errors.New("mw.Close: not implemented")
+	return errors.New("ecr.manifest.close: not implemented")
 }
 
 func (mw *manifestWriter) Digest() digest.Digest {
@@ -49,9 +50,9 @@ func (mw *manifestWriter) Digest() digest.Digest {
 }
 
 func (mw *manifestWriter) Commit(ctx context.Context, size int64, expected digest.Digest, opts ...content.Opt) error {
-	fmt.Printf("mw.Commit: size=%d expected=%s\n", size, expected)
+	log.G(mw.ctx).WithField("size", size).WithField("expected", expected).Debug("ecr.manifest.commit")
 	manifest := mw.buf.String()
-	fmt.Println(manifest)
+	log.G(mw.ctx).WithField("manifest", manifest).Debug("ecr.manifest.commit")
 	ecrSpec := mw.base.ecrSpec
 	tag, _ := ecrSpec.TagDigest()
 	putImageInput := &ecr.PutImageInput{
@@ -60,7 +61,6 @@ func (mw *manifestWriter) Commit(ctx context.Context, size int64, expected diges
 		ImageTag:       aws.String(tag),
 		ImageManifest:  aws.String(manifest),
 	}
-	fmt.Printf("%v\n", putImageInput)
 
 	output, err := mw.base.client.PutImage(putImageInput)
 	if err != nil {
@@ -78,7 +78,8 @@ func (mw *manifestWriter) Commit(ctx context.Context, size int64, expected diges
 }
 
 func (mw *manifestWriter) Status() (content.Status, error) {
-	fmt.Println("mw.Status")
+	log.G(mw.ctx).Debug("ecr.manifest.status")
+
 	// TODO implement?
 	// need at least ref to be populated for good error messages
 	return content.Status{
@@ -87,6 +88,6 @@ func (mw *manifestWriter) Status() (content.Status, error) {
 }
 
 func (mw *manifestWriter) Truncate(size int64) error {
-	fmt.Printf("mw.Truncate: size=%d\n", size)
+	log.G(mw.ctx).WithField("size", size).Debug("ecr.manifest.truncate")
 	return errors.New("mw.Truncate: not implemented")
 }

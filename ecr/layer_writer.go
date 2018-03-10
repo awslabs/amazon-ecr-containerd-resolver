@@ -16,7 +16,6 @@ package ecr
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"strings"
 
@@ -24,6 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ecr"
 	"github.com/containerd/containerd/content"
+	"github.com/containerd/containerd/log"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -47,6 +47,7 @@ const (
 
 func newLayerWriter(base *ecrBase, desc ocispec.Descriptor) (content.Writer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
+	ctx = log.WithLogger(ctx, log.G(ctx).WithField("desc", desc))
 	reader, writer := io.Pipe()
 	lw := &layerWriter{
 		ctx:  ctx,
@@ -67,17 +68,27 @@ func newLayerWriter(base *ecrBase, desc ocispec.Descriptor) (content.Writer, err
 	}
 	lw.uploadID = aws.StringValue(initiateLayerUploadOutput.UploadId)
 	partSize := aws.Int64Value(initiateLayerUploadOutput.PartSize)
-	fmt.Printf("lw.init digest=%s uuid=%s partSize=%d\n", desc.Digest.String(), lw.uploadID, partSize)
+	log.G(ctx).
+		WithField("digest", desc.Digest.String()).
+		WithField("uploadID", lw.uploadID).
+		WithField("partSize", partSize).
+		Debug("ecr.blob.init")
 
 	go func() {
 		defer cancel()
 		defer close(lw.err)
 		_, err := stream.ChunkedProcessor(reader, partSize, layerQueueSize,
 			func(layerChunk *stream.Chunk) error {
-				fmt.Printf("lw.callback: digest=%s part=%d\n", desc.Digest.String(), layerChunk.Part)
 				begin := layerChunk.BytesBegin
 				end := layerChunk.BytesEnd
 				bytesRead := end - begin
+				log.G(ctx).
+					WithField("digest", desc.Digest.String()).
+					WithField("part", layerChunk.Part).
+					WithField("begin", begin).
+					WithField("end", end).
+					WithField("bytes", bytesRead).
+					Debug("ecr.layer.callback")
 
 				uploadLayerPartInput := &ecr.UploadLayerPartInput{
 					RegistryId:     aws.String(base.ecrSpec.Registry()),
@@ -89,20 +100,25 @@ func newLayerWriter(base *ecrBase, desc ocispec.Descriptor) (content.Writer, err
 				}
 
 				_, err := base.client.UploadLayerPart(uploadLayerPartInput)
-				fmt.Printf("lw.callback: done digest=%s part=%d bytesRead=%d begin=%d end=%d\n",
-					desc.Digest.String(), layerChunk.Part, bytesRead, begin, end)
+				log.G(ctx).
+					WithField("digest", desc.Digest.String()).
+					WithField("part", layerChunk.Part).
+					WithField("begin", begin).
+					WithField("end", end).
+					WithField("bytes", bytesRead).
+					Debug("ecr.layer.callback end")
 				return err
 			})
 		if err != nil {
 			lw.err <- err
 		}
-		fmt.Printf("lw.chunkedReader: done digest=%s\n", desc.Digest.String())
+		log.G(ctx).WithField("digest", desc.Digest.String()).Debug("ecr.layer upload done")
 	}()
 	return lw, nil
 }
 
 func (lw *layerWriter) Write(b []byte) (int, error) {
-	fmt.Printf("lw.Write: len(b)=%d\n", len(b))
+	log.G(lw.ctx).WithField("len(b)", len(b)).Debug("ecr.layer.write")
 	select {
 	case err := <-lw.err:
 		return 0, err
@@ -122,12 +138,15 @@ func (lw *layerWriter) Digest() digest.Digest {
 }
 
 func (lw *layerWriter) Commit(ctx context.Context, size int64, expected digest.Digest, opts ...content.Opt) error {
-	fmt.Printf("lw.Commit: size=%d expected=%s\n", size, expected)
+	log.G(lw.ctx).WithField("size", size).WithField("expected", expected).Debug("ecr.layer.commit")
 	lw.buf.Close()
 	select {
 	case err := <-lw.err:
 		if err != nil {
-			fmt.Printf("lw.Commit: expected=%s err=%v\n", expected, err)
+			log.G(lw.ctx).
+				WithError(err).
+				WithField("expected", expected).
+				Error("ecr.layer.commit: error while uploading parts")
 			return err
 		}
 	case <-lw.ctx.Done():
@@ -150,7 +169,7 @@ func (lw *layerWriter) Commit(ctx context.Context, size int64, expected digest.D
 		// has not been validated.
 		awsErr, ok := err.(awserr.Error)
 		if ok && awsErr.Code() == "LayerAlreadyExistsException" && strings.HasPrefix(expected.String(), "sha256:") {
-			fmt.Println("ecr: layer already exists")
+			log.G(lw.ctx).Debug("ecr.layer.commit: layer already exists")
 			return nil
 		} else {
 			return err
@@ -159,18 +178,23 @@ func (lw *layerWriter) Commit(ctx context.Context, size int64, expected digest.D
 	if actualDigest != expected.String() {
 		return errors.New("ecr: failed to validate uploaded digest")
 	}
-	fmt.Printf("lw.Commit: actual=%s expected=%s\n", actualDigest, expected)
+	log.G(ctx).
+		WithField("expected", expected).
+		WithField("actual", actualDigest).
+		Debug("ecr.layer.commit: complete")
 	return nil
 }
 
 func (lw *layerWriter) Status() (content.Status, error) {
-	//fmt.Println("lw.Status")
+	log.G(lw.ctx).Debug("ecr.layer.status")
+
 	return content.Status{
 		Ref: lw.desc.Digest.String(),
 	}, nil
 }
 
 func (lw *layerWriter) Truncate(size int64) error {
-	//fmt.Printf("lw.Truncate: size=%d\n", size)
-	return errors.New("lw.Truncate: not implemented")
+	log.G(lw.ctx).WithField("size", size).Debug("ecr.layer.truncate")
+
+	return errors.New("ecr.layer.truncate: not implemented")
 }

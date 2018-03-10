@@ -17,7 +17,6 @@ package ecr
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -26,6 +25,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ecr"
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/remotes"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -41,7 +41,8 @@ type ecrFetcher struct {
 var _ remotes.Fetcher = (*ecrFetcher)(nil)
 
 func (f *ecrFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.ReadCloser, error) {
-	fmt.Printf("fetch: desc=%v\n", desc)
+	ctx = log.WithLogger(ctx, log.G(ctx).WithField("desc", desc))
+	log.G(ctx).Debug("ecr.fetch")
 	// need to do different things based on the media type
 	switch desc.MediaType {
 	case
@@ -58,7 +59,9 @@ func (f *ecrFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.Rea
 		ocispec.MediaTypeImageConfig:
 		return f.fetchLayer(ctx, desc)
 	default:
-		fmt.Printf("fetch: desc=%v mediatype=%s\n", desc, desc.MediaType)
+		log.G(ctx).
+			WithField("media type", desc.MediaType).
+			Error("ecr.fetcher: unimplemented media type")
 		return nil, unimplemented
 	}
 	return nil, unimplemented
@@ -76,7 +79,7 @@ func (f *ecrFetcher) fetchManifest(ctx context.Context, desc ocispec.Descriptor)
 }
 
 func (f *ecrFetcher) fetchLayer(ctx context.Context, desc ocispec.Descriptor) (io.ReadCloser, error) {
-	fmt.Printf("fetchLayer: desc=%v\n", desc)
+	log.G(ctx).Debug("ecr.fetcher.layer")
 	getDownloadUrlForLayerInput := &ecr.GetDownloadUrlForLayerInput{
 		RegistryId:     aws.String(f.ecrSpec.Registry()),
 		RepositoryName: aws.String(f.ecrSpec.Repository),
@@ -86,14 +89,18 @@ func (f *ecrFetcher) fetchLayer(ctx context.Context, desc ocispec.Descriptor) (i
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("fetchLayer: url=%s\n", aws.StringValue(output.DownloadUrl))
 
 	downloadURL := aws.StringValue(output.DownloadUrl)
 	req, err := http.NewRequest(http.MethodGet, downloadURL, nil)
 	if err != nil {
+		log.G(ctx).
+			WithError(err).
+			WithField("desc", desc).
+			WithField("url", downloadURL).
+			Error("ecr.fetcher.layer: failed to create HTTP request")
 		return nil, err
 	}
-	fmt.Printf("fetch: GET to %s\n", downloadURL)
+	log.G(ctx).WithField("url", downloadURL).Debug("ecr.fetcher.layer")
 
 	req.Header.Set("Accept", strings.Join([]string{desc.MediaType, `*`}, ", "))
 	resp, err := f.doRequest(ctx, req)
@@ -102,9 +109,9 @@ func (f *ecrFetcher) fetchLayer(ctx context.Context, desc ocispec.Descriptor) (i
 	}
 	if resp.StatusCode > 299 {
 		resp.Body.Close()
-		return nil, errors.Errorf("unexpected status code %v: %v", downloadURL, resp.Status)
+		return nil, errors.Errorf("ecr.fetcher.layer: unexpected status code %v: %v", downloadURL, resp.Status)
 	}
-	fmt.Println("fetch: returning body")
+	log.G(ctx).WithField("desc", desc).Debug("ecr.fetcher.layer: returning body")
 	return resp.Body, nil
 }
 

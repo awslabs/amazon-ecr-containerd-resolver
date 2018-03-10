@@ -16,13 +16,13 @@ package ecr
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ecr"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -42,7 +42,8 @@ type ecrPusher struct {
 var _ remotes.Pusher = (*ecrPusher)(nil)
 
 func (p ecrPusher) Push(ctx context.Context, desc ocispec.Descriptor) (content.Writer, error) {
-	fmt.Printf("push: desc=%v\n", desc)
+	ctx = log.WithLogger(ctx, log.G(ctx).WithField("desc", desc))
+	log.G(ctx).Debug("ecr.push")
 
 	switch desc.MediaType {
 	case
@@ -58,18 +59,20 @@ func (p ecrPusher) Push(ctx context.Context, desc ocispec.Descriptor) (content.W
 }
 
 func (p ecrPusher) pushManifest(ctx context.Context, desc ocispec.Descriptor) (content.Writer, error) {
-	fmt.Printf("pushManifest: desc=%v\n", desc)
+	log.G(ctx).Debug("ecr.pusher.manifest")
 	exists, err := p.checkManifestExistence(ctx, desc)
 	if err != nil {
-		fmt.Println(err)
+		log.G(ctx).WithError(err).
+			Error("ecr.pusher.manifest: failed to check existence")
 		return nil, err
 	}
 	if exists {
-		fmt.Println("exists")
+		log.G(ctx).Debug("ecr.pusher.manifest: content already on remote")
 		return nil, errors.Wrapf(errdefs.ErrAlreadyExists, "content %v on remote", desc.Digest)
 	}
 
 	return &manifestWriter{
+		ctx:  ctx,
 		base: &p.ecrBase,
 		desc: desc,
 	}, nil
@@ -84,7 +87,7 @@ func (p ecrPusher) checkManifestExistence(ctx context.Context, desc ocispec.Desc
 		return false, err
 	}
 	if image == nil {
-		return false, errors.New("checkManifestExistence: unexpected nil image")
+		return false, errors.New("ecr.pusher.manifest: unexpected nil image")
 	}
 
 	found := desc.Digest.String() == aws.StringValue(image.ImageId.ImageDigest)
@@ -92,14 +95,15 @@ func (p ecrPusher) checkManifestExistence(ctx context.Context, desc ocispec.Desc
 }
 
 func (p ecrPusher) pushBlob(ctx context.Context, desc ocispec.Descriptor) (content.Writer, error) {
-	fmt.Printf("pushBlob: desc=%v\n", desc)
+	log.G(ctx).Debug("ecr.pusher.blob")
 	exists, err := p.checkBlobExistence(ctx, desc)
 	if err != nil {
-		fmt.Println(err)
+		log.G(ctx).WithError(err).
+			Error("ecr.pusher.blob: failed to check existence")
 		return nil, err
 	}
 	if exists {
-		fmt.Println("exists")
+		log.G(ctx).Debug("ecr.pusher.blob: content already on remote")
 		return nil, errors.Wrapf(errdefs.ErrAlreadyExists, "content %v on remote", desc.Digest)
 	}
 
@@ -107,8 +111,6 @@ func (p ecrPusher) pushBlob(ctx context.Context, desc ocispec.Descriptor) (conte
 }
 
 func (p ecrPusher) checkBlobExistence(ctx context.Context, desc ocispec.Descriptor) (bool, error) {
-	fmt.Printf("checkBlobExistence: desc=%v\n", desc)
-
 	batchCheckLayerAvailabilityInput := &ecr.BatchCheckLayerAvailabilityInput{
 		RegistryId:     aws.String(p.ecrSpec.Registry()),
 		RepositoryName: aws.String(p.ecrSpec.Repository),
@@ -117,10 +119,12 @@ func (p ecrPusher) checkBlobExistence(ctx context.Context, desc ocispec.Descript
 
 	batchCheckLayerAvailabilityOutput, err := p.client.BatchCheckLayerAvailability(batchCheckLayerAvailabilityInput)
 	if err != nil {
-		fmt.Println(err)
+		log.G(ctx).WithError(err).Error("ecr.pusher.blob: failed to check availability")
 		return false, err
 	}
-	fmt.Println(batchCheckLayerAvailabilityOutput)
+	log.G(ctx).
+		WithField("batchCheckLayerAvailability", batchCheckLayerAvailabilityOutput).
+		Debug("ecr.pusher.blob")
 
 	if len(batchCheckLayerAvailabilityOutput.Layers) != 1 {
 		if len(batchCheckLayerAvailabilityOutput.Failures) > 0 {

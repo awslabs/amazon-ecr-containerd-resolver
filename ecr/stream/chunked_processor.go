@@ -2,7 +2,6 @@ package stream
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"time"
 )
@@ -83,10 +82,7 @@ func (reader *chunkedReader) readIntoChunks() {
 			}
 
 			if chunk != nil {
-				fmt.Printf("chunkedReader.readChunk: %d, %d:%d %f\n", chunk.Part, chunk.BytesBegin, chunk.BytesEnd, chunk.ReadTime.Seconds())
-				start := time.Now()
 				reader.readChannel <- chunk
-				fmt.Printf("chunkedReader.readChunk: blocked for %s on readChannel\n", time.Since(start).String())
 				currentBytes = chunk.BytesEnd + 1
 				currentPart++
 			}
@@ -121,11 +117,9 @@ func (reader *chunkedReader) processChunks(readCallback readCallbackFunc) (int64
 			err := readCallback(chunk)
 
 			if err != nil {
-				fmt.Printf("chunkedReader: readCallback failed: %s\n", err)
 				return 0, err
 			}
 		case err := <-reader.errorChannel:
-			fmt.Printf("chunkdedReader: Could not read layer: %s\n", err)
 			return 0, err
 		}
 	}

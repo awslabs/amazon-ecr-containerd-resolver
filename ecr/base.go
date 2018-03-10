@@ -23,6 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ecr"
 	"github.com/aws/aws-sdk-go/service/ecr/ecriface"
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/reference"
 )
 
@@ -37,7 +38,7 @@ type ecrBase struct {
 
 func (b *ecrBase) getManifest(ctx context.Context) (*ecr.Image, error) {
 	imageIdentifier := b.ecrSpec.ImageID()
-	fmt.Printf("getManifest: imageIdentifier=%v\n", imageIdentifier)
+	log.G(ctx).WithField("imageIdentifier", imageIdentifier).Debug("ecr.base.manifest")
 	batchGetImageInput := &ecr.BatchGetImageInput{
 		RegistryId:         aws.String(b.ecrSpec.Registry()),
 		RepositoryName:     aws.String(b.ecrSpec.Repository),
@@ -47,10 +48,11 @@ func (b *ecrBase) getManifest(ctx context.Context) (*ecr.Image, error) {
 
 	batchGetImageOutput, err := b.client.BatchGetImage(batchGetImageInput)
 	if err != nil {
+		log.G(ctx).WithError(err).Error("ecr.base.manifest: failed to get image")
 		fmt.Println(err)
 		return nil, err
 	}
-	fmt.Println(batchGetImageOutput)
+	log.G(ctx).WithField("batchGetImage", batchGetImageOutput).Debug("ecr.base.manifest")
 
 	var ecrImage *ecr.Image
 	if len(batchGetImageOutput.Images) != 1 {
@@ -58,7 +60,9 @@ func (b *ecrBase) getManifest(ctx context.Context) (*ecr.Image, error) {
 			aws.StringValue(batchGetImageOutput.Failures[0].FailureCode) == ecr.ImageFailureCodeImageNotFound {
 			return nil, errImageNotFound
 		}
-		fmt.Println("what")
+		log.G(ctx).
+			WithField("failures", batchGetImageOutput.Failures).
+			Warn("ecr.base.manifest: unexpected failure")
 		return nil, reference.ErrInvalid
 	}
 	ecrImage = batchGetImageOutput.Images[0]

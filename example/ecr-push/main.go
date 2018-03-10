@@ -21,14 +21,18 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/samuelkarp/amazon-ecr-containerd-resolver/ecr"
+	"github.com/sirupsen/logrus"
 )
 
 func main() {
+	ctx := namespaces.NamespaceFromEnv(context.Background())
+	logrus.SetLevel(logrus.DebugLevel)
+
 	if len(os.Args) < 2 {
-		fmt.Println("must provide image to push as argument")
-		os.Exit(1)
+		log.G(ctx).Fatal("Must provide image to push as argument")
 	}
 	ref := os.Args[1]
 	local := ""
@@ -40,18 +44,14 @@ func main() {
 
 	client, err := containerd.New("/run/containerd/containerd.sock")
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		log.G(ctx).WithError(err).Fatal("Failed to connect to containerd")
 	}
 	defer client.Close()
 
 	awsSession, err := session.NewSession()
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		log.G(ctx).WithError(err).Fatal("Failed to create AWS session")
 	}
-
-	ctx := namespaces.NamespaceFromEnv(context.Background())
 
 	img, err := client.ImageService().Get(ctx, local)
 	if err != nil {
@@ -61,11 +61,12 @@ func main() {
 
 	desc := img.Target
 
+	log.G(ctx).WithField("local", local).WithField("ref", ref).Info("Pushing to Amazon ECR")
 	err = client.Push(ctx, ref, desc,
 		containerd.WithResolver(ecr.NewResolver(awsSession)))
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
+		log.G(ctx).WithError(err).WithField("ref", ref).Fatal("Failed to push")
 
+	}
+	log.G(ctx).WithField("ref", ref).Info("Pushed successfully!")
 }

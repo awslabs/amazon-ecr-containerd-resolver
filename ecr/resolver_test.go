@@ -1,6 +1,7 @@
 package ecr
 
 import (
+	"context"
 	"testing"
 
 	"github.com/containerd/containerd/images"
@@ -42,7 +43,7 @@ func TestParseImageManifestMediaType(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			mediaType := parseImageManifestMediaType(tc.manifest)
+			mediaType := parseImageManifestMediaType(context.TODO(), tc.manifest)
 			assert.Equal(t, tc.mediaType, mediaType)
 		})
 	}
