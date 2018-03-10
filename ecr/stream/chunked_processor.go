@@ -15,7 +15,7 @@ type Chunk struct {
 	ReadTime   time.Duration // time spent reading buffer
 }
 
-type chunkedReader struct {
+type chunkedProcessor struct {
 	ctx          context.Context
 	cancel       func()
 	readChannel  chan *Chunk
@@ -36,7 +36,7 @@ type readCallbackFunc func(*Chunk) error
 // to read from the queued Chunks.
 func ChunkedProcessor(reader io.Reader, chunkSize int64, queueSize int64, readCallback readCallbackFunc) (int64, error) {
 	ctx, cancel := context.WithCancel(context.Background())
-	bufferedReader := &chunkedReader{
+	bufferedReader := &chunkedProcessor{
 		ctx:          ctx,
 		cancel:       cancel,
 		readChannel:  make(chan *Chunk, queueSize),
@@ -66,23 +66,23 @@ func ChunkedProcessor(reader io.Reader, chunkSize int64, queueSize int64, readCa
 // error reading from the buffer) and the readChannel
 //
 // Can be canceled by canceling the context.
-func (reader *chunkedReader) readIntoChunks() {
+func (processor *chunkedProcessor) readIntoChunks() {
 	var currentBytes, currentPart int64
-	defer close(reader.readChannel)
+	defer close(processor.readChannel)
 
 	for {
 		select {
-		case <-reader.ctx.Done():
+		case <-processor.ctx.Done():
 			return
 		default:
-			chunk, err := reader.readChunk(currentBytes, currentPart)
+			chunk, err := processor.readChunk(currentBytes, currentPart)
 			if err != nil && err != io.EOF {
-				reader.errorChannel <- err
+				processor.errorChannel <- err
 				return
 			}
 
 			if chunk != nil {
-				reader.readChannel <- chunk
+				processor.readChannel <- chunk
 				currentBytes = chunk.BytesEnd + 1
 				currentPart++
 			}
@@ -100,15 +100,15 @@ func (reader *chunkedReader) readIntoChunks() {
 //
 // If an error is received in the error channel or from the read callback,
 // the function returns and cancels the context.
-func (reader *chunkedReader) processChunks(readCallback readCallbackFunc) (int64, error) {
-	defer reader.cancel()
+func (processor *chunkedProcessor) processChunks(readCallback readCallbackFunc) (int64, error) {
+	defer processor.cancel()
 
 	lastReadByte := int64(0)
 	eof := false
 
 	for !eof {
 		select {
-		case chunk := <-reader.readChannel:
+		case chunk := <-processor.readChannel:
 			if chunk == nil {
 				eof = true
 				break
@@ -119,7 +119,7 @@ func (reader *chunkedReader) processChunks(readCallback readCallbackFunc) (int64
 			if err != nil {
 				return 0, err
 			}
-		case err := <-reader.errorChannel:
+		case err := <-processor.errorChannel:
 			return 0, err
 		}
 	}
@@ -130,10 +130,10 @@ func (reader *chunkedReader) processChunks(readCallback readCallbackFunc) (int64
 // readChunk reads and returns a new Chunk to the caller.
 // Given the current part and bytesBegin, populates the new Chunk with
 // the proper offsets. Will return nil Chunk if reader is empty.
-func (reader *chunkedReader) readChunk(bytesBegin int64, part int64) (*Chunk, error) {
+func (processor *chunkedProcessor) readChunk(bytesBegin int64, part int64) (*Chunk, error) {
 	startTime := time.Now()
-	buffer := make([]byte, reader.chunkSize)
-	size, err := io.ReadFull(reader.reader, buffer)
+	buffer := make([]byte, processor.chunkSize)
+	size, err := io.ReadFull(processor.reader, buffer)
 	if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
 		return nil, err
 	}
