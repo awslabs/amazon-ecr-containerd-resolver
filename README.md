@@ -4,24 +4,41 @@
 
 The Amazon ECR containerd resolver is an implementation of a
 [containerd](https://github.com/containerd/containerd)
-`Resolver` and `Fetcher` that can pull images from Amazon ECR using the Amazon
-ECR API instead of the Docker Registry API.
+`Resolver`, `Fetcher`, and `Pusher` that can pull images from Amazon ECR and
+push images to Amazon ECR using the Amazon ECR API instead of the Docker
+Registry API.
 
 > *Note:* This repository is a proof-of-concept and is not recommended for
 > production use.
 
 ## Usage
 
+### Pull images
 ```go
 img, err := client.Pull(
-    namespaces.NamespaceFromEnv(ctx),
+    namespaces.NamespaceFromEnv(context.TODO()),
     "ecr.aws/arn:aws:ecr:us-west-2:123456789012:repository/myrepository:mytag",
     containerd.WithResolver(ecr.NewResolver(awsSession)),
     containerd.WithPullUnpack,
     containerd.WithSchema1Conversion)
 ```
 
-A small example program is provided in the [example](tree/master/example)
+### Push images
+```go
+ctx := namespaces.NamsepaceFromEnv(context.TODO())
+
+img, _ := client.ImageService().Get(
+	ctx,
+	"docker.io/library/busybox:latest")
+
+err = client.Push(
+	ctx,
+	"ecr.aws/arn:aws:ecr:us-west-2:123456789012:repository/myrepository:mytag",
+	img.Target,
+	containerd.WithResolver(ecr.NewResolver(awsSession)))
+```
+
+Two small example programs are provided in the [example](tree/master/example)
 directory demonstrating how to use the resolver with containerd.
 
 ### `ref`
@@ -36,7 +53,7 @@ The canonical `ref` format used by the amazon-ecr-containerd-resolver is
 
 ## Building
 
-You can build the example program with `make`.
+You can build the example programs with `make`.
 
 ## License
 
