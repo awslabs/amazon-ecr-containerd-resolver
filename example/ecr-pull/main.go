@@ -20,15 +20,15 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/namespaces"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/samuelkarp/amazon-ecr-containerd-resolver/ecr"
-	"github.com/sirupsen/logrus"
 )
 
 func main() {
 	ctx := namespaces.NamespaceFromEnv(context.Background())
-	logrus.SetLevel(logrus.DebugLevel)
 
 	if len(os.Args) < 2 {
 		log.G(ctx).Fatal("Must provide image to pull as argument")
@@ -46,13 +46,37 @@ func main() {
 		log.G(ctx).WithError(err).Fatal("Failed to create AWS session")
 	}
 
+	ongoing := newJobs(ref)
+	pctx, stopProgress := context.WithCancel(ctx)
+	progress := make(chan struct{})
+	go func() {
+		showProgress(pctx, ongoing, client.ContentStore(), os.Stdout)
+		close(progress)
+	}()
+
+	h := images.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+		if desc.MediaType != images.MediaTypeDockerSchema1Manifest {
+			ongoing.add(desc)
+		}
+		return nil, nil
+	})
+
 	log.G(ctx).WithField("ref", ref).Info("Pulling from Amazon ECR")
 	img, err := client.Pull(ctx, ref,
 		containerd.WithResolver(ecr.NewResolver(awsSession)),
-		containerd.WithPullUnpack,
+		//containerd.WithPullUnpack,
+		containerd.WithImageHandler(h),
 		containerd.WithSchema1Conversion)
+	stopProgress()
 	if err != nil {
 		log.G(ctx).WithError(err).WithField("ref", ref).Fatal("Failed to pull")
 	}
+	<-progress
 	log.G(ctx).WithField("img", img.Name()).Info("Pulled successfully!")
+
+	log.G(ctx).WithField("img", img.Name()).Info("unpacking...")
+	err = img.Unpack(ctx, containerd.DefaultSnapshotter)
+	if err != nil {
+		log.G(ctx).WithError(err).WithField("img", img.Name).Fatal("Failed to unpack")
+	}
 }
