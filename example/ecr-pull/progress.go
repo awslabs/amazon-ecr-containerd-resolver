@@ -34,6 +34,7 @@ import (
 	"github.com/containerd/containerd/progress"
 	"github.com/containerd/containerd/remotes"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/go-units"
 	digest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -114,6 +115,7 @@ outer:
 							Status:    "done",
 							Offset:    info.Size,
 							Total:     info.Size,
+							StartedAt: start,
 							UpdatedAt: info.CreatedAt,
 						}
 					} else {
@@ -233,6 +235,20 @@ func Display(w io.Writer, statuses []StatusInfo, start time.Time) {
 				status.Ref,
 				status.Status,
 				bar)
+		case "done":
+			if status.Total > 0.0 {
+				bar := progress.Bar(1.0)
+				duration := status.UpdatedAt.Sub(status.StartedAt)
+				fmt.Fprintf(w, "%s:\t%s\t%40r\t%s\t%s\t%s\t\n",
+					status.Ref,
+					status.Status,
+					bar,
+					progress.Bytes(status.Total),
+					units.HumanDuration(duration),
+					progress.NewBytesPerSecond(status.Total, duration))
+				continue
+			}
+			fallthrough
 		default:
 			bar := progress.Bar(1.0)
 			fmt.Fprintf(w, "%s:\t%s\t%40r\t\n",
