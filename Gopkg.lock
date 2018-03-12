@@ -12,6 +12,7 @@
   name = "github.com/aws/aws-sdk-go"
   packages = [
     "aws",
+    "aws/arn",
     "aws/awserr",
     "aws/awsutil",
     "aws/client",
@@ -41,6 +42,12 @@
     "service/sts"
   ]
   revision = "99e4f37f2b87e2fd934346c6423a0fad945fa69a"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/containerd/console"
+  packages = ["."]
+  revision = "cb7008ab3d8359b78c5f464cb7cf160107ad5925"
 
 [[projects]]
   name = "github.com/containerd/containerd"
@@ -79,6 +86,7 @@
     "oci",
     "platforms",
     "plugin",
+    "progress",
     "protobuf/google/rpc",
     "reference",
     "remotes",
@@ -117,9 +125,21 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/docker/docker"
+  packages = ["errdefs"]
+  revision = "241c904e6f5fff020890a7641558e83a209c0bbd"
+
+[[projects]]
+  branch = "master"
   name = "github.com/docker/go-events"
   packages = ["."]
   revision = "9461782956ad83b30282bf90e31fa6a70c255ba9"
+
+[[projects]]
+  name = "github.com/docker/go-units"
+  packages = ["."]
+  revision = "0dadbb0345b35ec7ef35e228dabb8de89a65bf52"
+  version = "v0.3.2"
 
 [[projects]]
   name = "github.com/go-ini/ini"
@@ -299,6 +319,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "dbc361f40bb7335641212e8c4c4c7090859de0b93466c6b97779eb18c43f076a"
+  inputs-digest = "e98c65f4d9e712413e8730a96371fe3bea497a7080dcde4bfaa49ea9d9d733f5"
   solver-name = "gps-cdcl"
   solver-version = 1
