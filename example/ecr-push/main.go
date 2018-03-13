@@ -18,18 +18,25 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"text/tabwriter"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/namespaces"
+	"github.com/containerd/containerd/progress"
+	"github.com/containerd/containerd/remotes"
+	"github.com/containerd/containerd/remotes/docker"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/samuelkarp/amazon-ecr-containerd-resolver/ecr"
-	"github.com/sirupsen/logrus"
+	"golang.org/x/sync/errgroup"
 )
 
 func main() {
 	ctx := namespaces.NamespaceFromEnv(context.Background())
-	logrus.SetLevel(logrus.DebugLevel)
+	//logrus.SetLevel(logrus.DebugLevel)
 
 	if len(os.Args) < 2 {
 		log.G(ctx).Fatal("Must provide image to push as argument")
@@ -52,6 +59,8 @@ func main() {
 	if err != nil {
 		log.G(ctx).WithError(err).Fatal("Failed to create AWS session")
 	}
+	tracker := docker.NewInMemoryTracker()
+	resolver := ecr.NewResolver(awsSession, ecr.ResolverOptions{Tracker: tracker})
 
 	img, err := client.ImageService().Get(ctx, local)
 	if err != nil {
@@ -59,14 +68,66 @@ func main() {
 		os.Exit(1)
 	}
 
-	desc := img.Target
+	ongoing := newPushJobs(tracker)
+	eg, ctx := errgroup.WithContext(ctx)
+	eg.Go(func() error {
+		log.G(ctx).WithField("local", local).WithField("ref", ref).Info("Pushing to Amazon ECR")
+		desc := img.Target
 
-	log.G(ctx).WithField("local", local).WithField("ref", ref).Info("Pushing to Amazon ECR")
-	err = client.Push(ctx, ref, desc,
-		containerd.WithResolver(ecr.NewResolver(awsSession)))
+		jobHandler := images.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+			ongoing.add(remotes.MakeRefKey(ctx, desc))
+			return nil, nil
+		})
+
+		return client.Push(ctx, ref, desc,
+			containerd.WithResolver(resolver),
+			containerd.WithImageHandler(jobHandler))
+
+	})
+	errs := make(chan error)
+	go func() {
+		defer close(errs)
+		errs <- eg.Wait()
+	}()
+
+	err = displayUploadProgress(ctx, ongoing, errs)
 	if err != nil {
 		log.G(ctx).WithError(err).WithField("ref", ref).Fatal("Failed to push")
 
 	}
 	log.G(ctx).WithField("ref", ref).Info("Pushed successfully!")
+}
+
+func displayUploadProgress(ctx context.Context, ongoing *pushjobs, errs chan error) error {
+	var (
+		ticker = time.NewTicker(100 * time.Millisecond)
+		fw     = progress.NewWriter(os.Stdout)
+		start  = time.Now()
+		done   bool
+	)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			fw.Flush()
+
+			tw := tabwriter.NewWriter(fw, 1, 8, 1, ' ', 0)
+
+			display(tw, ongoing.status(), start)
+			tw.Flush()
+
+			if done {
+				fw.Flush()
+				return nil
+			}
+		case err := <-errs:
+			if err != nil {
+				return err
+			}
+			done = true
+		case <-ctx.Done():
+			done = true // allow ui to update once more
+		}
+	}
 }

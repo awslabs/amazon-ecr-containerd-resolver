@@ -30,6 +30,7 @@ import (
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes"
+	"github.com/containerd/containerd/remotes/docker"
 	digest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -40,10 +41,23 @@ type ecrResolver struct {
 	session     *session.Session
 	clients     map[string]ecriface.ECRAPI
 	clientsLock sync.Mutex
+	tracker     docker.StatusTracker
 }
 
-func NewResolver(session *session.Session) remotes.Resolver {
-	return &ecrResolver{session: session, clients: map[string]ecriface.ECRAPI{}}
+type ResolverOptions struct {
+	// Tracker is used to track uploads to ECR.
+	Tracker docker.StatusTracker
+}
+
+func NewResolver(session *session.Session, options ResolverOptions) remotes.Resolver {
+	if options.Tracker == nil {
+		options.Tracker = docker.NewInMemoryTracker()
+	}
+	return &ecrResolver{
+		session: session,
+		clients: map[string]ecriface.ECRAPI{},
+		tracker: options.Tracker,
+	}
 }
 
 func (r *ecrResolver) Resolve(ctx context.Context, ref string) (string, ocispec.Descriptor, error) {
@@ -162,9 +176,10 @@ func (r *ecrResolver) Pusher(ctx context.Context, ref string) (remotes.Pusher, e
 	}
 
 	return &ecrPusher{
-		ecrBase{
+		ecrBase: ecrBase{
 			client:  r.getClient(ecrSpec.Region()),
 			ecrSpec: ecrSpec,
 		},
+		tracker: r.tracker,
 	}, nil
 }

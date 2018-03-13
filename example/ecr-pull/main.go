@@ -63,8 +63,7 @@ func main() {
 
 	log.G(ctx).WithField("ref", ref).Info("Pulling from Amazon ECR")
 	img, err := client.Pull(ctx, ref,
-		containerd.WithResolver(ecr.NewResolver(awsSession)),
-		//containerd.WithPullUnpack,
+		containerd.WithResolver(ecr.NewResolver(awsSession, ecr.ResolverOptions{})),
 		containerd.WithImageHandler(h),
 		containerd.WithSchema1Conversion)
 	stopProgress()

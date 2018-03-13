@@ -16,6 +16,7 @@ package ecr
 
 import (
 	"context"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ecr"
@@ -25,6 +26,7 @@ import (
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes"
+	"github.com/containerd/containerd/remotes/docker"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
@@ -37,6 +39,7 @@ var (
 // to push images to Amazon ECR.
 type ecrPusher struct {
 	ecrBase
+	tracker docker.StatusTracker
 }
 
 var _ remotes.Pusher = (*ecrPusher)(nil)
@@ -68,13 +71,17 @@ func (p ecrPusher) pushManifest(ctx context.Context, desc ocispec.Descriptor) (c
 	}
 	if exists {
 		log.G(ctx).Debug("ecr.pusher.manifest: content already on remote")
+		p.markStatusExists(ctx, desc)
 		return nil, errors.Wrapf(errdefs.ErrAlreadyExists, "content %v on remote", desc.Digest)
 	}
 
+	ref := p.markStatusStarted(ctx, desc)
 	return &manifestWriter{
-		ctx:  ctx,
-		base: &p.ecrBase,
-		desc: desc,
+		ctx:     ctx,
+		base:    &p.ecrBase,
+		desc:    desc,
+		tracker: p.tracker,
+		ref:     ref,
 	}, nil
 }
 
@@ -104,10 +111,12 @@ func (p ecrPusher) pushBlob(ctx context.Context, desc ocispec.Descriptor) (conte
 	}
 	if exists {
 		log.G(ctx).Debug("ecr.pusher.blob: content already on remote")
+		p.markStatusExists(ctx, desc)
 		return nil, errors.Wrapf(errdefs.ErrAlreadyExists, "content %v on remote", desc.Digest)
 	}
 
-	return newLayerWriter(&p.ecrBase, desc)
+	ref := p.markStatusStarted(ctx, desc)
+	return newLayerWriter(&p.ecrBase, p.tracker, ref, desc)
 }
 
 func (p ecrPusher) checkBlobExistence(ctx context.Context, desc ocispec.Descriptor) (bool, error) {
@@ -135,4 +144,28 @@ func (p ecrPusher) checkBlobExistence(ctx context.Context, desc ocispec.Descript
 
 	layer := batchCheckLayerAvailabilityOutput.Layers[0]
 	return aws.StringValue(layer.LayerAvailability) == ecr.LayerAvailabilityAvailable, nil
+}
+
+func (p ecrPusher) markStatusExists(ctx context.Context, desc ocispec.Descriptor) string {
+	ref := remotes.MakeRefKey(ctx, desc)
+	p.tracker.SetStatus(ref, docker.Status{
+		Status: content.Status{
+			Ref:       ref,
+			UpdatedAt: time.Now(),
+		},
+	})
+	return ref
+}
+
+func (p ecrPusher) markStatusStarted(ctx context.Context, desc ocispec.Descriptor) string {
+	ref := remotes.MakeRefKey(ctx, desc)
+	p.tracker.SetStatus(ref, docker.Status{
+		Status: content.Status{
+			Ref:       ref,
+			Total:     desc.Size,
+			Expected:  desc.Digest,
+			StartedAt: time.Now(),
+		},
+	})
+	return ref
 }

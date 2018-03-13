@@ -18,12 +18,14 @@ import (
 	"context"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ecr"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/log"
+	"github.com/containerd/containerd/remotes/docker"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -35,6 +37,8 @@ type layerWriter struct {
 	base     *ecrBase
 	desc     ocispec.Descriptor
 	buf      io.WriteCloser
+	tracker  docker.StatusTracker
+	ref      string
 	uploadID string
 	err      chan error
 }
@@ -45,16 +49,18 @@ const (
 	layerQueueSize = 5
 )
 
-func newLayerWriter(base *ecrBase, desc ocispec.Descriptor) (content.Writer, error) {
+func newLayerWriter(base *ecrBase, tracker docker.StatusTracker, ref string, desc ocispec.Descriptor) (content.Writer, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	ctx = log.WithLogger(ctx, log.G(ctx).WithField("desc", desc))
 	reader, writer := io.Pipe()
 	lw := &layerWriter{
-		ctx:  ctx,
-		base: base,
-		desc: desc,
-		buf:  writer,
-		err:  make(chan error),
+		ctx:     ctx,
+		base:    base,
+		desc:    desc,
+		buf:     writer,
+		tracker: tracker,
+		ref:     ref,
+		err:     make(chan error),
 	}
 
 	// call InitiateLayerUpload and get upload ID
@@ -107,6 +113,15 @@ func newLayerWriter(base *ecrBase, desc ocispec.Descriptor) (content.Writer, err
 					WithField("end", end).
 					WithField("bytes", bytesRead).
 					Debug("ecr.layer.callback end")
+				if err == nil {
+					var status docker.Status
+					status, err = lw.tracker.GetStatus(lw.ref)
+					if err == nil {
+						status.Offset += int64(bytesRead) + 1
+						status.UpdatedAt = time.Now()
+						lw.tracker.SetStatus(lw.ref, status)
+					}
+				}
 				return err
 			})
 		if err != nil {

@@ -17,21 +17,25 @@ package ecr
 import (
 	"bytes"
 	"context"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ecr"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/log"
+	"github.com/containerd/containerd/remotes/docker"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
 type manifestWriter struct {
-	ctx  context.Context
-	base *ecrBase
-	desc ocispec.Descriptor
-	buf  bytes.Buffer
+	ctx     context.Context
+	base    *ecrBase
+	desc    ocispec.Descriptor
+	buf     bytes.Buffer
+	tracker docker.StatusTracker
+	ref     string
 }
 
 var _ content.Writer = (*manifestWriter)(nil)
@@ -67,6 +71,15 @@ func (mw *manifestWriter) Commit(ctx context.Context, size int64, expected diges
 		return errors.Wrapf(err, "ecr: failed to put manifest: %s", ecrSpec)
 	}
 
+	status, err := mw.tracker.GetStatus(mw.ref)
+	if err == nil {
+		status.Offset = int64(len(manifest))
+		status.UpdatedAt = time.Now()
+		mw.tracker.SetStatus(mw.ref, status)
+	} else {
+		log.G(mw.ctx).WithError(err).WithField("ref", mw.ref).Warn("Failed to update status")
+	}
+
 	if output == nil {
 		return errors.Errorf("ecr: failed to put manifest, nil output: %s", ecrSpec)
 	}
@@ -80,11 +93,11 @@ func (mw *manifestWriter) Commit(ctx context.Context, size int64, expected diges
 func (mw *manifestWriter) Status() (content.Status, error) {
 	log.G(mw.ctx).Debug("ecr.manifest.status")
 
-	// TODO implement?
-	// need at least ref to be populated for good error messages
-	return content.Status{
-		Ref: mw.Digest().String(),
-	}, nil
+	status, err := mw.tracker.GetStatus(mw.ref)
+	if err != nil {
+		return content.Status{}, err
+	}
+	return status.Status, nil
 }
 
 func (mw *manifestWriter) Truncate(size int64) error {
