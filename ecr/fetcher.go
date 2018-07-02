@@ -24,6 +24,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ecr"
+	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/remotes"
@@ -58,6 +59,8 @@ func (f *ecrFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.Rea
 		ocispec.MediaTypeImageLayer,
 		ocispec.MediaTypeImageConfig:
 		return f.fetchLayer(ctx, desc)
+	case images.MediaTypeDockerSchema2LayerForeignGzip:
+		return f.fetchForeignLayer(ctx, desc)
 	default:
 		log.G(ctx).
 			WithField("media type", desc.MediaType).
@@ -91,16 +94,28 @@ func (f *ecrFetcher) fetchLayer(ctx context.Context, desc ocispec.Descriptor) (i
 	}
 
 	downloadURL := aws.StringValue(output.DownloadUrl)
+	return f.fetchLayerURL(ctx, desc, downloadURL)
+}
+
+func (f *ecrFetcher) fetchForeignLayer(ctx context.Context, desc ocispec.Descriptor) (io.ReadCloser, error) {
+	log.G(ctx).Debug("ecr.fetcher.layer.foreign")
+	if len(desc.URLs) < 1 {
+		log.G(ctx).Error("cannot pull foreign layer without URL")
+	}
+	// TODO try more than one URL
+	return f.fetchLayerURL(ctx, desc, desc.URLs[0])
+}
+
+func (f *ecrFetcher) fetchLayerURL(ctx context.Context, desc ocispec.Descriptor, downloadURL string) (io.ReadCloser, error) {
 	req, err := http.NewRequest(http.MethodGet, downloadURL, nil)
 	if err != nil {
 		log.G(ctx).
 			WithError(err).
-			WithField("desc", desc).
 			WithField("url", downloadURL).
-			Error("ecr.fetcher.layer: failed to create HTTP request")
+			Error("ecr.fetcher.layer.url: failed to create HTTP request")
 		return nil, err
 	}
-	log.G(ctx).WithField("url", downloadURL).Debug("ecr.fetcher.layer")
+	log.G(ctx).WithField("url", downloadURL).Debug("ecr.fetcher.layer.url")
 
 	req.Header.Set("Accept", strings.Join([]string{desc.MediaType, `*`}, ", "))
 	resp, err := f.doRequest(ctx, req)
@@ -109,9 +124,12 @@ func (f *ecrFetcher) fetchLayer(ctx context.Context, desc ocispec.Descriptor) (i
 	}
 	if resp.StatusCode > 299 {
 		resp.Body.Close()
-		return nil, errors.Errorf("ecr.fetcher.layer: unexpected status code %v: %v", downloadURL, resp.Status)
+		if resp.StatusCode == http.StatusNotFound {
+			return nil, errors.Wrapf(errdefs.ErrNotFound, "content at %v not found", downloadURL)
+		}
+		return nil, errors.Errorf("ecr.fetcher.layer.url: unexpected status code %v: %v", downloadURL, resp.Status)
 	}
-	log.G(ctx).WithField("desc", desc).Debug("ecr.fetcher.layer: returning body")
+	log.G(ctx).WithField("desc", desc).Debug("ecr.fetcher.layer.url: returning body")
 	return resp.Body, nil
 }
 
