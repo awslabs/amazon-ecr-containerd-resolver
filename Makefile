@@ -21,6 +21,8 @@ PULLDIR=$(SOURCEDIR)/example/ecr-pull
 PULL_BINARY=$(ROOT)/bin/ecr-pull
 PUSHDIR=$(SOURCEDIR)/example/ecr-push
 PUSH_BINARY=$(ROOT)/bin/ecr-push
+COPYDIR=$(SOURCEDIR)/example/ecr-copy
+COPY_BINARY=$(ROOT)/bin/ecr-copy
 
 VENDORDIR=$(ROOT)/vendor
 DEP=Gopkg.toml
@@ -28,13 +30,16 @@ LOCK=Gopkg.lock
 
 
 .PHONY: build
-build: $(PULL_BINARY) $(PUSH_BINARY)
+build: $(PULL_BINARY) $(PUSH_BINARY) $(COPY_BINARY)
 
 $(PULL_BINARY): $(SOURCES) $(VENDORDIR)
 	cd $(PULLDIR) && go build -o $(PULL_BINARY) .
 
 $(PUSH_BINARY): $(SOURCES) $(VENDORDIR)
 	cd $(PUSHDIR) && go build -o $(PUSH_BINARY) .
+
+$(COPY_BINARY): $(SOURCES) $(VENDORDIR)
+	cd $(COPYDIR) && go build -o $(COPY_BINARY) .
 
 .PHONY: vendor
 vendor: $(VENDORDIR)
