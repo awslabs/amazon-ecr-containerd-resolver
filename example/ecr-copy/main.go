@@ -65,7 +65,7 @@ func main() {
 	)
 	if err != nil {
 		log.G(ctx).WithError(err).WithField("destRef", destRef).Fatal("Failed to push")
-
 	}
+
 	log.G(ctx).WithField("destRef", destRef).Info("Pushed successfully!")
 }
