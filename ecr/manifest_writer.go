@@ -68,7 +68,7 @@ func (mw *manifestWriter) Commit(ctx context.Context, size int64, expected diges
 
 	output, err := mw.base.client.PutImage(putImageInput)
 	if err != nil {
-		return errors.Wrapf(err, "ecr: failed to put manifest: %s", ecrSpec)
+		return errors.Wrapf(err, "ecr: failed to put manifest: %v", ecrSpec)
 	}
 
 	status, err := mw.tracker.GetStatus(mw.ref)
@@ -81,7 +81,7 @@ func (mw *manifestWriter) Commit(ctx context.Context, size int64, expected diges
 	}
 
 	if output == nil {
-		return errors.Errorf("ecr: failed to put manifest, nil output: %s", ecrSpec)
+		return errors.Errorf("ecr: failed to put manifest, nil output: %v", ecrSpec)
 	}
 	actual := aws.StringValue(output.Image.ImageId.ImageDigest)
 	if actual != expected.String() {
