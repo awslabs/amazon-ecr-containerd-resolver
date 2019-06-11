@@ -71,7 +71,7 @@
   name = "github.com/aws/aws-sdk-go"
 
 [[constraint]]
-  version = "1.0.2"
+  version = "1.1.0"
   name = "github.com/containerd/containerd"
 
 [[constraint]]
@@ -82,10 +82,9 @@
   branch = "master"
   name = "github.com/opencontainers/image-spec"
 
-[[override]] # see https://github.com/containerd/containerd/blob/v1.0.2/vendor.conf#L28
+[[override]]
   name = "google.golang.org/grpc"
-  #version = "1.7.2"
-  revision = "5ffe3083946d5603a0578721101dc8165b1d5b5f"
+  version = "1.12.0"
 
 [[constraint]]
   branch = "master"
