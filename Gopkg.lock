@@ -85,7 +85,7 @@
   revision = "0650fd9eeb50bab4fc99dceb9f2e14cf58f36e7f"
 
 [[projects]]
-  digest = "1:95ed84c52426dd715af558c2248bb0fc988a81d084841f791ac3cefae4847ace"
+  digest = "1:4ddce6b53cd0324ec358ec90d68204d4c566a9d97667a44cc0462d6d0da5aaca"
   name = "github.com/containerd/containerd"
   packages = [
     ".",
@@ -102,11 +102,13 @@
     "api/services/version/v1",
     "api/types",
     "api/types/task",
+    "archive",
+    "archive/compression",
     "cio",
     "containers",
     "content",
+    "content/proxy",
     "defaults",
-    "dialer",
     "diff",
     "errdefs",
     "events",
@@ -114,26 +116,31 @@
     "filters",
     "identifiers",
     "images",
+    "images/archive",
     "leases",
-    "linux/runctypes",
+    "leases/proxy",
     "log",
     "mount",
     "namespaces",
     "oci",
+    "pkg/dialer",
+    "pkg/progress",
     "platforms",
     "plugin",
-    "progress",
     "reference",
     "remotes",
     "remotes/docker",
     "remotes/docker/schema1",
     "rootfs",
+    "runtime/linux/runctypes",
     "snapshots",
+    "snapshots/proxy",
     "sys",
+    "version",
   ]
   pruneopts = ""
-  revision = "4278fbc24348343e3693658313d6964d548b7063"
-  version = "v1.1.7"
+  revision = "85f6aa58b8a3170aec9824568f7a31832878b603"
+  version = "v1.2.7"
 
 [[projects]]
   branch = "master"
@@ -172,12 +179,15 @@
   version = "v1.1.1"
 
 [[projects]]
-  digest = "1:c05f1899f086e3b4613d94d9e6f7ba6f4b6587498a1aa6037c5c294b22f5a743"
+  digest = "1:a01511fe18f459e3982d45af2a375b83f11b69dadc31348285d863526a312158"
   name = "github.com/docker/distribution"
-  packages = ["registry/api/errcode"]
+  packages = [
+    "digestset",
+    "reference",
+    "registry/api/errcode",
+  ]
   pruneopts = ""
-  revision = "2461543d988979529609e8cb6fca9ca190dc48da"
-  version = "v2.7.1"
+  revision = "0d3efadf0154c2b8a4e7b6621fff9809655cc580"
 
 [[projects]]
   branch = "master"
@@ -458,7 +468,7 @@
     "github.com/containerd/containerd/images",
     "github.com/containerd/containerd/log",
     "github.com/containerd/containerd/namespaces",
-    "github.com/containerd/containerd/progress",
+    "github.com/containerd/containerd/pkg/progress",
     "github.com/containerd/containerd/reference",
     "github.com/containerd/containerd/remotes",
     "github.com/containerd/containerd/remotes/docker",

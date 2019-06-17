@@ -71,7 +71,7 @@
   name = "github.com/aws/aws-sdk-go"
 
 [[constraint]]
-  version = "1.1.0"
+  version = "1.2.0"
   name = "github.com/containerd/containerd"
 
 [[constraint]]
@@ -85,6 +85,10 @@
 [[override]]
   name = "google.golang.org/grpc"
   version = "1.12.0"
+
+[[override]]
+  name = "github.com/docker/distribution"
+  revision = "0d3efadf0154c2b8a4e7b6621fff9809655cc580"
 
 [[constraint]]
   branch = "master"

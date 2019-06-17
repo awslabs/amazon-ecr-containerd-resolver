@@ -31,7 +31,7 @@ import (
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/log"
-	"github.com/containerd/containerd/progress"
+	"github.com/containerd/containerd/pkg/progress"
 	"github.com/containerd/containerd/remotes"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/go-units"
