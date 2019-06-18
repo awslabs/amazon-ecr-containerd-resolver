@@ -133,5 +133,7 @@ func (spec ECRSpec) ImageID() *ecr.ImageIdentifier {
 }
 
 func (spec ECRSpec) TagDigest() (string, digest.Digest) {
-	return reference.SplitObject(spec.Object)
+	tag, digest := reference.SplitObject(spec.Object)
+	tag = strings.TrimSuffix(tag, "@")
+	return tag, digest
 }
