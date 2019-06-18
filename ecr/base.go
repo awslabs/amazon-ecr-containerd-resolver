@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright 2017-2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"). You
  * may not use this file except in compliance with the License. A copy of
@@ -21,7 +21,6 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ecr"
-	"github.com/aws/aws-sdk-go/service/ecr/ecriface"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/reference"
@@ -32,8 +31,21 @@ var (
 )
 
 type ecrBase struct {
-	client  ecriface.ECRAPI
+	client  ecrAPI
 	ecrSpec ECRSpec
+}
+
+// ecrAPI contains only the ECR APIs that are called by the resolver
+// See https://docs.aws.amazon.com/sdk-for-go/api/service/ecr/ecriface/ for the
+// full interface from the SDK.
+type ecrAPI interface {
+	BatchGetImage(*ecr.BatchGetImageInput) (*ecr.BatchGetImageOutput, error)
+	GetDownloadUrlForLayer(*ecr.GetDownloadUrlForLayerInput) (*ecr.GetDownloadUrlForLayerOutput, error)
+	BatchCheckLayerAvailability(*ecr.BatchCheckLayerAvailabilityInput) (*ecr.BatchCheckLayerAvailabilityOutput, error)
+	InitiateLayerUpload(*ecr.InitiateLayerUploadInput) (*ecr.InitiateLayerUploadOutput, error)
+	UploadLayerPart(*ecr.UploadLayerPartInput) (*ecr.UploadLayerPartOutput, error)
+	CompleteLayerUpload(*ecr.CompleteLayerUploadInput) (*ecr.CompleteLayerUploadOutput, error)
+	PutImage(*ecr.PutImageInput) (*ecr.PutImageOutput, error)
 }
 
 func (b *ecrBase) getManifest(ctx context.Context) (*ecr.Image, error) {

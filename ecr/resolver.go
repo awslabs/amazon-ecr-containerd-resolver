@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright 2017-2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"). You
  * may not use this file except in compliance with the License. A copy of
@@ -25,13 +25,12 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ecr"
 	ecrsdk "github.com/aws/aws-sdk-go/service/ecr"
-	"github.com/aws/aws-sdk-go/service/ecr/ecriface"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
@@ -39,7 +38,7 @@ var unimplemented = errors.New("unimplemented")
 
 type ecrResolver struct {
 	session     *session.Session
-	clients     map[string]ecriface.ECRAPI
+	clients     map[string]ecrAPI
 	clientsLock sync.Mutex
 	tracker     docker.StatusTracker
 }
@@ -55,7 +54,7 @@ func NewResolver(session *session.Session, options ResolverOptions) remotes.Reso
 	}
 	return &ecrResolver{
 		session: session,
-		clients: map[string]ecriface.ECRAPI{},
+		clients: map[string]ecrAPI{},
 		tracker: options.Tracker,
 	}
 }
@@ -111,7 +110,7 @@ func (r *ecrResolver) Resolve(ctx context.Context, ref string) (string, ocispec.
 	return ecrSpec.Canonical(), desc, nil
 }
 
-func (r *ecrResolver) getClient(region string) ecriface.ECRAPI {
+func (r *ecrResolver) getClient(region string) ecrAPI {
 	r.clientsLock.Lock()
 	defer r.clientsLock.Unlock()
 	if _, ok := r.clients[region]; !ok {
