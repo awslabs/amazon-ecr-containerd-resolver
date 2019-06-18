@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright 2017-2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"). You
  * may not use this file except in compliance with the License. A copy of
@@ -126,7 +126,7 @@ func (p ecrPusher) checkBlobExistence(ctx context.Context, desc ocispec.Descript
 		LayerDigests:   []*string{aws.String(desc.Digest.String())},
 	}
 
-	batchCheckLayerAvailabilityOutput, err := p.client.BatchCheckLayerAvailability(batchCheckLayerAvailabilityInput)
+	batchCheckLayerAvailabilityOutput, err := p.client.BatchCheckLayerAvailabilityWithContext(ctx, batchCheckLayerAvailabilityInput)
 	if err != nil {
 		log.G(ctx).WithError(err).Error("ecr.pusher.blob: failed to check availability")
 		return false, err

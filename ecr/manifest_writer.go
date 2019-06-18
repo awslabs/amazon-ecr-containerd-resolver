@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright 2017-2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"). You
  * may not use this file except in compliance with the License. A copy of
@@ -66,7 +66,7 @@ func (mw *manifestWriter) Commit(ctx context.Context, size int64, expected diges
 		ImageManifest:  aws.String(manifest),
 	}
 
-	output, err := mw.base.client.PutImage(putImageInput)
+	output, err := mw.base.client.PutImageWithContext(ctx, putImageInput)
 	if err != nil {
 		return errors.Wrapf(err, "ecr: failed to put manifest: %v", ecrSpec)
 	}

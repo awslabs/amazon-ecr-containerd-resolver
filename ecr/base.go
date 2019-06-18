@@ -20,6 +20,7 @@ import (
 	"fmt"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ecr"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/log"
@@ -39,13 +40,13 @@ type ecrBase struct {
 // See https://docs.aws.amazon.com/sdk-for-go/api/service/ecr/ecriface/ for the
 // full interface from the SDK.
 type ecrAPI interface {
-	BatchGetImage(*ecr.BatchGetImageInput) (*ecr.BatchGetImageOutput, error)
-	GetDownloadUrlForLayer(*ecr.GetDownloadUrlForLayerInput) (*ecr.GetDownloadUrlForLayerOutput, error)
-	BatchCheckLayerAvailability(*ecr.BatchCheckLayerAvailabilityInput) (*ecr.BatchCheckLayerAvailabilityOutput, error)
+	BatchGetImageWithContext(aws.Context, *ecr.BatchGetImageInput, ...request.Option) (*ecr.BatchGetImageOutput, error)
+	GetDownloadUrlForLayerWithContext(aws.Context, *ecr.GetDownloadUrlForLayerInput, ...request.Option) (*ecr.GetDownloadUrlForLayerOutput, error)
+	BatchCheckLayerAvailabilityWithContext(aws.Context, *ecr.BatchCheckLayerAvailabilityInput, ...request.Option) (*ecr.BatchCheckLayerAvailabilityOutput, error)
 	InitiateLayerUpload(*ecr.InitiateLayerUploadInput) (*ecr.InitiateLayerUploadOutput, error)
 	UploadLayerPart(*ecr.UploadLayerPartInput) (*ecr.UploadLayerPartOutput, error)
 	CompleteLayerUpload(*ecr.CompleteLayerUploadInput) (*ecr.CompleteLayerUploadOutput, error)
-	PutImage(*ecr.PutImageInput) (*ecr.PutImageOutput, error)
+	PutImageWithContext(aws.Context, *ecr.PutImageInput, ...request.Option) (*ecr.PutImageOutput, error)
 }
 
 func (b *ecrBase) getManifest(ctx context.Context) (*ecr.Image, error) {
@@ -58,7 +59,7 @@ func (b *ecrBase) getManifest(ctx context.Context) (*ecr.Image, error) {
 		AcceptedMediaTypes: []*string{aws.String(images.MediaTypeDockerSchema2Manifest)},
 	}
 
-	batchGetImageOutput, err := b.client.BatchGetImage(batchGetImageInput)
+	batchGetImageOutput, err := b.client.BatchGetImageWithContext(ctx, batchGetImageInput)
 	if err != nil {
 		log.G(ctx).WithError(err).Error("ecr.base.manifest: failed to get image")
 		fmt.Println(err)

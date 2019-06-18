@@ -78,7 +78,7 @@ func (r *ecrResolver) Resolve(ctx context.Context, ref string) (string, ocispec.
 
 	client := r.getClient(ecrSpec.Region())
 
-	batchGetImageOutput, err := client.BatchGetImage(batchGetImageInput)
+	batchGetImageOutput, err := client.BatchGetImageWithContext(ctx, batchGetImageInput)
 	if err != nil {
 		log.G(ctx).
 			WithField("ref", ref).

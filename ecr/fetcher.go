@@ -88,7 +88,7 @@ func (f *ecrFetcher) fetchLayer(ctx context.Context, desc ocispec.Descriptor) (i
 		RepositoryName: aws.String(f.ecrSpec.Repository),
 		LayerDigest:    aws.String(desc.Digest.String()),
 	}
-	output, err := f.client.GetDownloadUrlForLayer(getDownloadUrlForLayerInput)
+	output, err := f.client.GetDownloadUrlForLayerWithContext(ctx, getDownloadUrlForLayerInput)
 	if err != nil {
 		return nil, err
 	}
