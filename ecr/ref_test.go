@@ -16,15 +16,19 @@ package ecr
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/arn"
+	"github.com/aws/aws-sdk-go/service/ecr"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestParseRef(t *testing.T) {
+func TestRefRepresentations(t *testing.T) {
 	cases := []struct {
 		ref  string
+		arn  string
 		spec ECRSpec
 		err  error
 	}{
@@ -42,6 +46,7 @@ func TestParseRef(t *testing.T) {
 		},
 		{
 			ref: "ecr.aws/arn:aws:ecr:us-west-2:123456789012:repository/foo/bar",
+			arn: "arn:aws:ecr:us-west-2:123456789012:repository/foo/bar",
 			spec: ECRSpec{
 				arn: arn.ARN{
 					Partition: "aws",
@@ -55,6 +60,7 @@ func TestParseRef(t *testing.T) {
 		},
 		{
 			ref: "ecr.aws/arn:aws:ecr:us-west-2:123456789012:repository/foo/bar:latest",
+			arn: "arn:aws:ecr:us-west-2:123456789012:repository/foo/bar",
 			spec: ECRSpec{
 				arn: arn.ARN{
 					Partition: "aws",
@@ -69,6 +75,7 @@ func TestParseRef(t *testing.T) {
 		},
 		{
 			ref: "ecr.aws/arn:aws:ecr:us-west-2:123456789012:repository/foo/bar:latest@sha256:digest",
+			arn: "arn:aws:ecr:us-west-2:123456789012:repository/foo/bar",
 			spec: ECRSpec{
 				arn: arn.ARN{
 					Partition: "aws",
@@ -83,6 +90,7 @@ func TestParseRef(t *testing.T) {
 		},
 		{
 			ref: "ecr.aws/arn:aws:ecr:us-west-2:123456789012:repository/foo/bar@sha256:digest",
+			arn: "arn:aws:ecr:us-west-2:123456789012:repository/foo/bar",
 			spec: ECRSpec{
 				arn: arn.ARN{
 					Partition: "aws",
@@ -97,7 +105,7 @@ func TestParseRef(t *testing.T) {
 		},
 	}
 	for _, tc := range cases {
-		t.Run(tc.ref, func(t *testing.T) {
+		t.Run(fmt.Sprintf("ParseRef-%s", tc.ref), func(t *testing.T) {
 			spec, err := ParseRef(tc.ref)
 			assert.Equal(t, tc.spec, spec)
 			if tc.err == nil {
@@ -105,6 +113,68 @@ func TestParseRef(t *testing.T) {
 			} else {
 				assert.Equal(t, tc.err, err)
 			}
+		})
+		if tc.err != nil {
+			continue
+		}
+		t.Run(fmt.Sprintf("Canonical-%s", tc.ref), func(t *testing.T) {
+			assert.Equal(t, tc.ref, tc.spec.Canonical())
+		})
+		t.Run(fmt.Sprintf("ARN-%s", tc.ref), func(t *testing.T) {
+			assert.Equal(t, tc.arn, tc.spec.ARN())
+		})
+	}
+}
+
+func TestImageID(t *testing.T) {
+	cases := []struct {
+		name    string
+		spec    ECRSpec
+		imageID *ecr.ImageIdentifier
+	}{
+		{
+			name: "blank",
+			spec: ECRSpec{
+				Repository: "foo/bar",
+			},
+			imageID: &ecr.ImageIdentifier{},
+		},
+		{
+			name: "tag",
+			spec: ECRSpec{
+				Repository: "foo/bar",
+				Object:     "latest",
+			},
+			imageID: &ecr.ImageIdentifier{
+				ImageTag: aws.String("latest"),
+			},
+		},
+		{
+			name: "digest",
+			spec: ECRSpec{
+				Repository: "foo/bar",
+				Object:     "@sha256:digest",
+			},
+			imageID: &ecr.ImageIdentifier{
+				ImageDigest: aws.String("sha256:digest"),
+			},
+		},
+		{
+			name: "tag+digest",
+			spec: ECRSpec{
+				Repository: "foo/bar",
+				Object:     "latest@sha256:digest",
+			},
+			imageID: &ecr.ImageIdentifier{
+				ImageTag:    aws.String("latest"),
+				ImageDigest: aws.String("sha256:digest"),
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.imageID, tc.spec.ImageID())
 		})
 	}
 }
