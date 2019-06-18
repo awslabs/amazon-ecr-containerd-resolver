@@ -328,7 +328,10 @@
   branch = "master"
   digest = "1:964b5eed574102624d89e65d60548ea4873cbb02cff615a4f17bbb6cf337750a"
   name = "github.com/stretchr/testify"
-  packages = ["assert"]
+  packages = [
+    "assert",
+    "require",
+  ]
   pruneopts = ""
   revision = "34c6fa2dc70986bccbbffcc6130f6920a924b075"
 
@@ -477,6 +480,7 @@
     "github.com/opencontainers/image-spec/specs-go/v1",
     "github.com/pkg/errors",
     "github.com/stretchr/testify/assert",
+    "github.com/stretchr/testify/require",
     "golang.org/x/net/context/ctxhttp",
     "golang.org/x/sync/errgroup",
   ]

@@ -53,9 +53,10 @@ func (b *ecrBase) getManifest(ctx context.Context) (*ecr.Image, error) {
 	imageIdentifier := b.ecrSpec.ImageID()
 	log.G(ctx).WithField("imageIdentifier", imageIdentifier).Debug("ecr.base.manifest")
 	batchGetImageInput := &ecr.BatchGetImageInput{
-		RegistryId:         aws.String(b.ecrSpec.Registry()),
-		RepositoryName:     aws.String(b.ecrSpec.Repository),
-		ImageIds:           []*ecr.ImageIdentifier{imageIdentifier},
+		RegistryId:     aws.String(b.ecrSpec.Registry()),
+		RepositoryName: aws.String(b.ecrSpec.Repository),
+		ImageIds:       []*ecr.ImageIdentifier{imageIdentifier},
+		// TODO: Determine if this should be hard-coded
 		AcceptedMediaTypes: []*string{aws.String(images.MediaTypeDockerSchema2Manifest)},
 	}
 
