@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright 2017-2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"). You
  * may not use this file except in compliance with the License. A copy of
@@ -59,7 +59,8 @@ func (f *ecrFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.Rea
 		ocispec.MediaTypeImageLayer,
 		ocispec.MediaTypeImageConfig:
 		return f.fetchLayer(ctx, desc)
-	case images.MediaTypeDockerSchema2LayerForeignGzip:
+	case images.MediaTypeDockerSchema2LayerForeign,
+		images.MediaTypeDockerSchema2LayerForeignGzip:
 		return f.fetchForeignLayer(ctx, desc)
 	default:
 		log.G(ctx).
