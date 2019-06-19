@@ -92,7 +92,7 @@ func (r *ecrResolver) Resolve(ctx context.Context, ref string) (string, ocispec.
 		Debug("ecr.resolver.resolve")
 
 	var ecrImage *ecr.Image
-	if len(batchGetImageOutput.Images) != 1 {
+	if len(batchGetImageOutput.Images) == 0 {
 		return "", ocispec.Descriptor{}, reference.ErrInvalid
 	}
 	ecrImage = batchGetImageOutput.Images[0]

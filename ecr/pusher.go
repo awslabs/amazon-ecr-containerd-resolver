@@ -135,7 +135,7 @@ func (p ecrPusher) checkBlobExistence(ctx context.Context, desc ocispec.Descript
 		WithField("batchCheckLayerAvailability", batchCheckLayerAvailabilityOutput).
 		Debug("ecr.pusher.blob")
 
-	if len(batchCheckLayerAvailabilityOutput.Layers) != 1 {
+	if len(batchCheckLayerAvailabilityOutput.Layers) == 0 {
 		if len(batchCheckLayerAvailabilityOutput.Failures) > 0 {
 			return false, errLayerNotFound
 		}
