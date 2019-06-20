@@ -69,7 +69,7 @@ func (b *ecrBase) getManifest(ctx context.Context) (*ecr.Image, error) {
 	log.G(ctx).WithField("batchGetImage", batchGetImageOutput).Debug("ecr.base.manifest")
 
 	var ecrImage *ecr.Image
-	if len(batchGetImageOutput.Images) != 1 {
+	if len(batchGetImageOutput.Images) == 0 {
 		if len(batchGetImageOutput.Failures) > 0 &&
 			aws.StringValue(batchGetImageOutput.Failures[0].FailureCode) == ecr.ImageFailureCodeImageNotFound {
 			return nil, errImageNotFound
