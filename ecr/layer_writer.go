@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright 2017-2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"). You
  * may not use this file except in compliance with the License. A copy of
@@ -175,7 +175,6 @@ func (lw *layerWriter) Commit(ctx context.Context, size int64, expected digest.D
 	}
 
 	completeLayerUploadOutput, err := lw.base.client.CompleteLayerUpload(completeLayerUploadInput)
-	actualDigest := aws.StringValue(completeLayerUploadOutput.LayerDigest)
 	if err != nil {
 		// If the layer that is being uploaded already exists then return successfully instead of failing. Unfortunately
 		// in this case we do not get the digest back from ECR, but if the client-provided digest starts with a
@@ -190,6 +189,7 @@ func (lw *layerWriter) Commit(ctx context.Context, size int64, expected digest.D
 			return err
 		}
 	}
+	actualDigest := aws.StringValue(completeLayerUploadOutput.LayerDigest)
 	if actualDigest != expected.String() {
 		return errors.New("ecr: failed to validate uploaded digest")
 	}
