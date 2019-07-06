@@ -21,7 +21,6 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/log"
@@ -55,12 +54,11 @@ func main() {
 	}
 	defer client.Close()
 
-	awsSession, err := session.NewSession()
-	if err != nil {
-		log.G(ctx).WithError(err).Fatal("Failed to create AWS session")
-	}
 	tracker := docker.NewInMemoryTracker()
-	resolver := ecr.NewResolver(awsSession, ecr.ResolverOptions{Tracker: tracker})
+	resolver, err := ecr.NewResolver(ecr.WithTracker(tracker))
+	if err != nil {
+		log.G(ctx).WithError(err).Fatal("Failed to create resolver")
+	}
 
 	img, err := client.ImageService().Get(ctx, local)
 	if err != nil {

@@ -18,7 +18,6 @@ import (
 	"context"
 	"os"
 
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/namespaces"
@@ -41,11 +40,10 @@ func main() {
 	}
 	defer client.Close()
 
-	awsSession, err := session.NewSession()
+	resolver, err := ecr.NewResolver()
 	if err != nil {
-		log.G(ctx).WithError(err).Fatal("Failed to create AWS session")
+		log.G(ctx).WithError(err).Fatal("Failed to create resolver")
 	}
-	resolver := ecr.NewResolver(awsSession, ecr.ResolverOptions{})
 
 	log.G(ctx).WithField("sourceRef", sourceRef).Info("Pulling from Amazon ECR")
 	img, err := client.Pull(
