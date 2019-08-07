@@ -53,7 +53,10 @@ The canonical `ref` format used by the amazon-ecr-containerd-resolver is
 
 ## Building
 
-You can build the example programs with `make`.
+The Amazon ECR containerd resolver manages its dependencies with [Go 1.11
+modules](https://github.com/golang/go/wiki/Modules) and works best when used
+with Go 1.11 or greater.  If you have Go 1.11 or greater installed, you can
+build the example programs with `make`.
 
 ## License
 
