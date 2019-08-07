@@ -43,20 +43,62 @@ type ecrResolver struct {
 	tracker     docker.StatusTracker
 }
 
+// ResolverOption represents a functional option for configuring the ECR
+// Resolver
+type ResolverOption func(*ResolverOptions) error
+
+// ResolverOptions represents available options for configuring the ECR Resolver
 type ResolverOptions struct {
-	// Tracker is used to track uploads to ECR.
+	// Session is used for configuring the ECR client.  If not specified, a
+	// generic session is used.
+	Session *session.Session
+	// Tracker is used to track uploads to ECR.  If not specified, an in-memory
+	// tracker is used instead.
 	Tracker docker.StatusTracker
 }
 
-func NewResolver(session *session.Session, options ResolverOptions) remotes.Resolver {
-	if options.Tracker == nil {
-		options.Tracker = docker.NewInMemoryTracker()
+// WithSession is a ResolverOption to use a specific AWS session.Session
+func WithSession(session *session.Session) ResolverOption {
+	return func(options *ResolverOptions) error {
+		options.Session = session
+		return nil
+	}
+}
+
+// WithTracker is a ResolverOption to use a specific docker.Tracker
+func WithTracker(tracker docker.StatusTracker) ResolverOption {
+	return func(options *ResolverOptions) error {
+		options.Tracker = tracker
+		return nil
+	}
+}
+
+func NewResolver(options ...ResolverOption) (remotes.Resolver, error) {
+	resolverOptions := &ResolverOptions{}
+	for _, option := range options {
+		err := option(resolverOptions)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if resolverOptions.Session == nil {
+		awsSession, err := session.NewSession()
+		if err != nil {
+			return nil, err
+		}
+		resolverOptions.Session = awsSession
+	}
+	if resolverOptions.Tracker == nil {
+		resolverOptions.Tracker = docker.NewInMemoryTracker()
+	}
+	if resolverOptions.Session == nil {
+
 	}
 	return &ecrResolver{
-		session: session,
+		session: resolverOptions.Session,
 		clients: map[string]ecrAPI{},
-		tracker: options.Tracker,
-	}
+		tracker: resolverOptions.Tracker,
+	}, nil
 }
 
 func (r *ecrResolver) Resolve(ctx context.Context, ref string) (string, ocispec.Descriptor, error) {

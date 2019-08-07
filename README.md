@@ -15,10 +15,11 @@ Registry API.
 
 ### Pull images
 ```go
+resolver, _ := ecr.NewResolver()
 img, err := client.Pull(
     namespaces.NamespaceFromEnv(context.TODO()),
     "ecr.aws/arn:aws:ecr:us-west-2:123456789012:repository/myrepository:mytag",
-    containerd.WithResolver(ecr.NewResolver(awsSession)),
+    containerd.WithResolver(resolver),
     containerd.WithPullUnpack,
     containerd.WithSchema1Conversion)
 ```
@@ -30,12 +31,12 @@ ctx := namespaces.NamsepaceFromEnv(context.TODO())
 img, _ := client.ImageService().Get(
 	ctx,
 	"docker.io/library/busybox:latest")
-
+resolver, _ := ecr.NewResolver()
 err = client.Push(
 	ctx,
 	"ecr.aws/arn:aws:ecr:us-west-2:123456789012:repository/myrepository:mytag",
 	img.Target,
-	containerd.WithResolver(ecr.NewResolver(awsSession)))
+	containerd.WithResolver(resolver))
 ```
 
 Two small example programs are provided in the [example](tree/master/example)

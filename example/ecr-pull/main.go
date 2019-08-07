@@ -18,7 +18,6 @@ import (
 	"context"
 	"os"
 
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/log"
@@ -41,11 +40,6 @@ func main() {
 	}
 	defer client.Close()
 
-	awsSession, err := session.NewSession()
-	if err != nil {
-		log.G(ctx).WithError(err).Fatal("Failed to create AWS session")
-	}
-
 	ongoing := newJobs(ref)
 	pctx, stopProgress := context.WithCancel(ctx)
 	progress := make(chan struct{})
@@ -61,9 +55,14 @@ func main() {
 		return nil, nil
 	})
 
+	resolver, err := ecr.NewResolver()
+	if err != nil {
+		log.G(ctx).WithError(err).Fatal("Failed to create resolver")
+	}
+
 	log.G(ctx).WithField("ref", ref).Info("Pulling from Amazon ECR")
 	img, err := client.Pull(ctx, ref,
-		containerd.WithResolver(ecr.NewResolver(awsSession, ecr.ResolverOptions{})),
+		containerd.WithResolver(resolver),
 		containerd.WithImageHandler(h),
 		containerd.WithSchema1Conversion)
 	stopProgress()
