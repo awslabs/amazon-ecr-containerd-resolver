@@ -3,9 +3,9 @@ sudo: false
 os:
     - linux
 go:
-    - 1.10.x
+    - 1.11.x
+    - 1.12.x
 go_import_path: github.com/samuelkarp/amazon-ecr-containerd-resolver
-install: make vendor
 script:
 - make
 - make test

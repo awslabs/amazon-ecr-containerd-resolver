@@ -24,33 +24,24 @@ PUSH_BINARY=$(ROOT)/bin/ecr-push
 COPYDIR=$(SOURCEDIR)/example/ecr-copy
 COPY_BINARY=$(ROOT)/bin/ecr-copy
 
-VENDORDIR=$(ROOT)/vendor
-DEP=Gopkg.toml
-LOCK=Gopkg.lock
-
+export GO111MODULE=on
 
 .PHONY: build
 build: $(PULL_BINARY) $(PUSH_BINARY) $(COPY_BINARY)
 
-$(PULL_BINARY): $(SOURCES) $(VENDORDIR)
+$(PULL_BINARY): $(SOURCES)
 	cd $(PULLDIR) && go build -o $(PULL_BINARY) .
 
-$(PUSH_BINARY): $(SOURCES) $(VENDORDIR)
+$(PUSH_BINARY): $(SOURCES)
 	cd $(PUSHDIR) && go build -o $(PUSH_BINARY) .
 
-$(COPY_BINARY): $(SOURCES) $(VENDORDIR)
+$(COPY_BINARY): $(SOURCES)
 	cd $(COPYDIR) && go build -o $(COPY_BINARY) .
 
-.PHONY: vendor
-vendor: $(VENDORDIR)
-
-$(VENDORDIR): $(DEP)
-	which dep || go get -u github.com/golang/dep/cmd/dep
-	dep ensure -vendor-only
-
 .PHONY: test
-test: $(SOURCES) $(VENDORDIR)
+test: $(SOURCES)
 	go test -v $(shell go list ./... | grep -v '/vendor/')
+
 
 .PHONY: clean
 clean:
