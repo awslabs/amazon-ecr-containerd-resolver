@@ -91,9 +91,6 @@ func NewResolver(options ...ResolverOption) (remotes.Resolver, error) {
 	if resolverOptions.Tracker == nil {
 		resolverOptions.Tracker = docker.NewInMemoryTracker()
 	}
-	if resolverOptions.Session == nil {
-
-	}
 	return &ecrResolver{
 		session: resolverOptions.Session,
 		clients: map[string]ecrAPI{},
