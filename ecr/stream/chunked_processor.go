@@ -1,3 +1,20 @@
+/*
+ * Copyright 2017-2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"). You
+ * may not use this file except in compliance with the License. A copy of
+ * the License is located at
+ *
+ * 	http://aws.amazon.com/apache2.0/
+ *
+ * or in the "license" file accompanying this file. This file is
+ * distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+ * ANY KIND, either express or implied. See the License for the specific
+ * language governing permissions and limitations under the License.
+ */
+
+// Package stream contains functionality for processing arbitrarily large
+// streaming data.
 package stream
 
 import (
@@ -25,8 +42,12 @@ type chunkedProcessor struct {
 	queueSize    int64
 }
 
+// readCallbackFunc represents a callback function for processing chunks
 type readCallbackFunc func(*Chunk) error
 
+// ChunkedProcessor breaks an io.Reader into smaller parts (Chunks) and invokes
+// callbacks on those chunks.
+//
 // ChunkedProcessor asynchronously reads a io.Reader into at most queueSize
 // Chunks of chunkSize at a time.  The caller provides a readCallback function
 // to handle each read Chunk, which does not block reading.  readCallback
@@ -34,6 +55,17 @@ type readCallbackFunc func(*Chunk) error
 // until the previous has completed.  If the queue of Chunks is full, the
 // ChunkedProcessor will block waiting until the next readCallback is invoked
 // to read from the queued Chunks.
+//
+// Parameters
+//
+// reader - the io.Reader to read.
+//
+// chunkSize - the maximum number of bytes that should be present in each chunk.
+// All chunks except the last chunk should be exactly chunkSize.
+//
+// queueSize - the maximum number of unprocessed chunks to buffer.
+//
+// readCallback - the callback function to invoke for each chunk.
 func ChunkedProcessor(reader io.Reader, chunkSize int64, queueSize int64, readCallback readCallbackFunc) (int64, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	bufferedReader := &chunkedProcessor{

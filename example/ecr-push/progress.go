@@ -19,6 +19,7 @@
 //
 // Modifications are, where applicable, Copyright 2018 Amazon.com, Inc. or its affiliates.
 // Licensed under the Apache License 2.0
+
 package main
 
 import (
