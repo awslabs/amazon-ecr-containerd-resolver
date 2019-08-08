@@ -12,6 +12,7 @@
  * ANY KIND, either express or implied. See the License for the specific
  * language governing permissions and limitations under the License.
  */
+
 package ecr
 
 import (
@@ -73,6 +74,11 @@ func WithTracker(tracker docker.StatusTracker) ResolverOption {
 	}
 }
 
+// NewResolver creates a new remotes.Resolver capable of interacting with Amazon
+// ECR.  NewResolver can be called with no arguments for default configuration,
+// or can be customized by specifying ResolverOptions.  By default, NewResolver
+// will allocate a new AWS session.Session and an in-memory tracker for layer
+// progress.
 func NewResolver(options ...ResolverOption) (remotes.Resolver, error) {
 	resolverOptions := &ResolverOptions{}
 	for _, option := range options {
@@ -98,6 +104,10 @@ func NewResolver(options ...ResolverOption) (remotes.Resolver, error) {
 	}, nil
 }
 
+// Resolve attempts to resolve the provided reference into a name and a
+// descriptor.
+//
+// Valid references are of the form "ecr.aws/arn:aws:ecr:<region>:<account>:repository/<name>:<tag>".
 func (r *ecrResolver) Resolve(ctx context.Context, ref string) (string, ocispec.Descriptor, error) {
 	ecrSpec, err := ParseRef(ref)
 	if err != nil {

@@ -26,7 +26,7 @@ img, err := client.Pull(
 
 ### Push images
 ```go
-ctx := namespaces.NamsepaceFromEnv(context.TODO())
+ctx := namespaces.NamespaceFromEnv(context.TODO())
 
 img, _ := client.ImageService().Get(
 	ctx,

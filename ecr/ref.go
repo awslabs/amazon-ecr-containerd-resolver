@@ -12,6 +12,7 @@
  * ANY KIND, either express or implied. See the License for the specific
  * language governing permissions and limitations under the License.
  */
+
 package ecr
 
 import (
@@ -36,6 +37,9 @@ var (
 	splitRe    = regexp.MustCompile(`[:@]`)
 )
 
+// ECRSpec represents a parsed reference.
+//
+// Valid references are of the form "ecr.aws/arn:aws:ecr:<region>:<account>:repository/<name>:<tag>".
 type ECRSpec struct {
 	Repository string
 	Object     string
@@ -51,14 +55,17 @@ func ParseRef(ref string) (ECRSpec, error) {
 	return parseARN(stripped)
 }
 
+// Partition returns the AWS partition
 func (spec ECRSpec) Partition() string {
 	return spec.arn.Partition
 }
 
+// Region returns the AWS region
 func (spec ECRSpec) Region() string {
 	return spec.arn.Region
 }
 
+// Registry returns the Amazon ECR registry
 func (spec ECRSpec) Registry() string {
 	return spec.arn.AccountID
 }
@@ -97,7 +104,7 @@ func parseARN(a string) (ECRSpec, error) {
 
 }
 
-// Canonical returns the canonical representation
+// Canonical returns the canonical representation for the reference
 func (spec ECRSpec) Canonical() string {
 	object := ""
 	if len(spec.Object) != 0 {
@@ -132,6 +139,7 @@ func (spec ECRSpec) ImageID() *ecr.ImageIdentifier {
 	return &imageID
 }
 
+// TagDigest returns the tag and/or digest specified by the reference
 func (spec ECRSpec) TagDigest() (string, digest.Digest) {
 	tag, digest := reference.SplitObject(spec.Object)
 	tag = strings.TrimSuffix(tag, "@")
