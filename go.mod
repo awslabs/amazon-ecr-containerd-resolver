@@ -5,7 +5,7 @@ go 1.12
 require (
 	github.com/Microsoft/go-winio v0.4.12 // indirect
 	github.com/Microsoft/hcsshim v0.8.6 // indirect
-	github.com/aws/aws-sdk-go v0.0.0-20190610182410-b348cb633fa4
+	github.com/aws/aws-sdk-go v1.22.2
 	github.com/containerd/cgroups v0.0.0-20190717030353-c4b9ac5c7601 // indirect
 	github.com/containerd/console v0.0.0-20181022165439-0650fd9eeb50 // indirect
 	github.com/containerd/containerd v1.2.7
@@ -32,7 +32,6 @@ require (
 	golang.org/x/sync v0.0.0-20190423024810-112230192c58
 	golang.org/x/sys v0.0.0-20190610200419-93c9922d18ae // indirect
 	golang.org/x/text v0.3.2 // indirect
-	google.golang.org/appengine v1.4.0 // indirect
 	google.golang.org/genproto v0.0.0-20190605220351-eb0b1bdb6ae6 // indirect
 	google.golang.org/grpc v1.21.1 // indirect
 	gotest.tools v2.2.0+incompatible // indirect
