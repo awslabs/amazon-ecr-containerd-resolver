@@ -16,12 +16,15 @@
 package ecr
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/arn"
@@ -103,7 +106,7 @@ func TestFetchManifest(t *testing.T) {
 	imageManifest := "image manifest"
 	fakeClient := &fakeECRClient{}
 	fetcher := &ecrFetcher{
-		ecrBase{
+		ecrBase: ecrBase{
 			client: fakeClient,
 			ecrSpec: ECRSpec{
 				arn: arn.ARN{
@@ -199,7 +202,7 @@ func TestFetchLayer(t *testing.T) {
 	layerDigest := "digest"
 	fakeClient := &fakeECRClient{}
 	fetcher := &ecrFetcher{
-		ecrBase{
+		ecrBase: ecrBase{
 			client: fakeClient,
 			ecrSpec: ECRSpec{
 				arn: arn.ARN{
@@ -255,7 +258,7 @@ func TestFetchLayerAPIError(t *testing.T) {
 		},
 	}
 	fetcher := &ecrFetcher{
-		ecrBase{
+		ecrBase: ecrBase{
 			client: fakeClient,
 		},
 	}
@@ -264,4 +267,57 @@ func TestFetchLayerAPIError(t *testing.T) {
 	}
 	_, err := fetcher.Fetch(context.Background(), desc)
 	assert.Error(t, err)
+}
+
+func TestFetchLayerHtcat(t *testing.T) {
+	registry := "registry"
+	repository := "repository"
+	layerDigest := "digest"
+	fakeClient := &fakeECRClient{}
+	fetcher := &ecrFetcher{
+		ecrBase: ecrBase{
+			client: fakeClient,
+			ecrSpec: ECRSpec{
+				arn: arn.ARN{
+					AccountID: registry,
+				},
+				Repository: repository,
+			},
+		},
+		parallelism: 2,
+	}
+	// need >1mb of content for htcat to do parallel requests
+	const (
+		kB = 1024 * 1
+		mB = 1024 * kB
+	)
+	expectedBody := make([]byte, 30*mB)
+	rand.Read(expectedBody)
+	handlerCallCount := 0
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handlerCallCount++
+		http.ServeContent(w, r, "", time.Now(), bytes.NewReader(expectedBody))
+	}))
+	defer ts.Close()
+
+	downloadURLCallCount := 0
+	fakeClient.GetDownloadUrlForLayerFn = func(_ aws.Context, input *ecr.GetDownloadUrlForLayerInput, _ ...request.Option) (*ecr.GetDownloadUrlForLayerOutput, error) {
+		downloadURLCallCount++
+		assert.Equal(t, registry, aws.StringValue(input.RegistryId))
+		assert.Equal(t, repository, aws.StringValue(input.RepositoryName))
+		assert.Equal(t, layerDigest, aws.StringValue(input.LayerDigest))
+		return &ecr.GetDownloadUrlForLayerOutput{DownloadUrl: aws.String(ts.URL)}, nil
+	}
+	desc := ocispec.Descriptor{
+		MediaType: images.MediaTypeDockerSchema2Layer,
+		Digest:    digest.Digest(layerDigest),
+	}
+	reader, err := fetcher.Fetch(context.Background(), desc)
+	assert.NoError(t, err, "fetch")
+	defer reader.Close()
+	assert.Equal(t, 1, downloadURLCallCount, "GetDownloadURLForLayer should be called once")
+	body, err := ioutil.ReadAll(reader)
+	assert.NoError(t, err, "reading body")
+	assert.Equal(t, expectedBody, body)
+	assert.True(t, handlerCallCount > 1, "ServeContent should be called more than once: %d", handlerCallCount)
 }

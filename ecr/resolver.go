@@ -206,7 +206,7 @@ func (r *ecrResolver) Fetcher(ctx context.Context, ref string) (remotes.Fetcher,
 		return nil, err
 	}
 	return &ecrFetcher{
-		ecrBase{
+		ecrBase:ecrBase{
 			client:  r.getClient(ecrSpec.Region()),
 			ecrSpec: ecrSpec,
 		},
