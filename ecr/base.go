@@ -26,6 +26,7 @@ import (
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/reference"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 var (
@@ -58,7 +59,10 @@ func (b *ecrBase) getManifest(ctx context.Context) (*ecr.Image, error) {
 		RepositoryName: aws.String(b.ecrSpec.Repository),
 		ImageIds:       []*ecr.ImageIdentifier{imageIdentifier},
 		// TODO: Determine if this should be hard-coded
-		AcceptedMediaTypes: []*string{aws.String(images.MediaTypeDockerSchema2Manifest)},
+		AcceptedMediaTypes: []*string{
+			aws.String(ocispec.MediaTypeImageManifest),
+			aws.String(images.MediaTypeDockerSchema2Manifest),
+		},
 	}
 
 	batchGetImageOutput, err := b.client.BatchGetImageWithContext(ctx, batchGetImageInput)

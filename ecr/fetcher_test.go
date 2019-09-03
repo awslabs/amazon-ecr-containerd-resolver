@@ -129,7 +129,10 @@ func TestFetchManifest(t *testing.T) {
 				assert.Equal(t, repository, aws.StringValue(input.RepositoryName))
 				assert.Equal(t, []*ecr.ImageIdentifier{{ImageTag: aws.String(imageTag)}}, input.ImageIds)
 				// TODO: Determine if we should be matching the requested media type from containerd
-				assert.Equal(t, []*string{aws.String(images.MediaTypeDockerSchema2Manifest)}, input.AcceptedMediaTypes)
+				assert.Equal(t, []*string{
+					aws.String(ocispec.MediaTypeImageManifest),
+					aws.String(images.MediaTypeDockerSchema2Manifest),
+				}, input.AcceptedMediaTypes)
 				return &ecr.BatchGetImageOutput{Images: []*ecr.Image{{ImageManifest: aws.String(imageManifest)}}}, nil
 			}
 			desc := ocispec.Descriptor{
