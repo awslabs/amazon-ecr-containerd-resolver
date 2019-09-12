@@ -19,10 +19,10 @@ import (
 	"context"
 	"os"
 
+	"github.com/awslabs/amazon-ecr-containerd-resolver/ecr"
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/namespaces"
-	"github.com/samuelkarp/amazon-ecr-containerd-resolver/ecr"
 )
 
 func main() {

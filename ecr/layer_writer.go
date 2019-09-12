@@ -24,13 +24,13 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ecr"
+	"github.com/awslabs/amazon-ecr-containerd-resolver/ecr/stream"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/samuelkarp/amazon-ecr-containerd-resolver/ecr/stream"
 )
 
 type layerWriter struct {

@@ -19,12 +19,12 @@ import (
 	"context"
 	"os"
 
+	"github.com/awslabs/amazon-ecr-containerd-resolver/ecr"
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/namespaces"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/samuelkarp/amazon-ecr-containerd-resolver/ecr"
 )
 
 func main() {

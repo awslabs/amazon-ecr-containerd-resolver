@@ -1,4 +1,4 @@
-module github.com/samuelkarp/amazon-ecr-containerd-resolver
+module github.com/awslabs/amazon-ecr-containerd-resolver
 
 go 1.12
 

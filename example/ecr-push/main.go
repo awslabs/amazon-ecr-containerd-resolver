@@ -22,6 +22,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/awslabs/amazon-ecr-containerd-resolver/ecr"
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/log"
@@ -30,7 +31,6 @@ import (
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/samuelkarp/amazon-ecr-containerd-resolver/ecr"
 	"golang.org/x/sync/errgroup"
 )
 
