@@ -80,7 +80,10 @@ func WithTracker(tracker docker.StatusTracker) ResolverOption {
 }
 
 // WithLayerDownloadParallelism is a ResolverOption to configure whether layer
-// parts should be downloaded in parallel
+// parts should be downloaded in parallel.  Layer parallelism is backed by the
+// htcat library and can increase the speed at which layers are downloaded at
+// the cost of increased memory consumption.  It is recommended to test your
+// workload to determine whether the tradeoff is worthwhile.
 func WithLayerDownloadParallelism(parallelism int) ResolverOption {
 	return func(options *ResolverOptions) error {
 		options.LayerDownloadParallelism = parallelism
