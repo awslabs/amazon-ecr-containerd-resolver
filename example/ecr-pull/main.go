@@ -86,7 +86,9 @@ func main() {
 	}
 	<-progress
 	log.G(ctx).WithField("img", img.Name()).Info("Pulled successfully!")
-
+	if skipUnpack := os.Getenv("ECR_SKIP_UNPACK"); skipUnpack != "" {
+		return
+	}
 	log.G(ctx).WithField("img", img.Name()).Info("unpacking...")
 	err = img.Unpack(ctx, containerd.DefaultSnapshotter)
 	if err != nil {
