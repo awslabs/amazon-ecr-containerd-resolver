@@ -18,6 +18,7 @@ package main
 import (
 	"context"
 	"os"
+	"strconv"
 
 	"github.com/awslabs/amazon-ecr-containerd-resolver/ecr"
 	"github.com/containerd/containerd"
@@ -27,6 +28,10 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
+const (
+	defaultParallelism = 0
+)
+
 func main() {
 	ctx := namespaces.NamespaceFromEnv(context.Background())
 
@@ -34,6 +39,15 @@ func main() {
 		log.G(ctx).Fatal("Must provide image to pull as argument")
 	}
 	ref := os.Args[1]
+	parallelism := defaultParallelism
+	parallelismEnv := os.Getenv("ECR_PULL_PARALLEL")
+	if parallelismEnv != "" {
+		var err error
+		parallelism, err = strconv.Atoi(parallelismEnv)
+		if err != nil {
+			log.G(ctx).WithError(err).Fatal("Failed to parse ECR_PULL_PARALLEL")
+		}
+	}
 
 	client, err := containerd.New("/run/containerd/containerd.sock")
 	if err != nil {
@@ -56,7 +70,7 @@ func main() {
 		return nil, nil
 	})
 
-	resolver, err := ecr.NewResolver()
+	resolver, err := ecr.NewResolver(ecr.WithLayerDownloadParallelism(parallelism))
 	if err != nil {
 		log.G(ctx).WithError(err).Fatal("Failed to create resolver")
 	}
