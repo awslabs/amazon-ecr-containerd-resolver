@@ -19,13 +19,14 @@ require (
 	github.com/docker/go-units v0.4.0
 	github.com/godbus/dbus v4.1.0+incompatible // indirect
 	github.com/gogo/googleapis v1.2.0 // indirect
+	github.com/htcat/htcat v1.0.2
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
 	github.com/opencontainers/go-digest v0.0.0-20190228220655-ac19fd6e7483
 	github.com/opencontainers/image-spec v0.0.0-20190321123305-da296dcb1e47
 	github.com/opencontainers/runc v0.1.1 // indirect
 	github.com/opencontainers/runtime-spec v1.0.1 // indirect
 	github.com/pkg/errors v0.0.0-20190227000051-27936f6d90f9
-	github.com/sirupsen/logrus v1.4.2 // indirect
+	github.com/sirupsen/logrus v1.4.2
 	github.com/stretchr/testify v1.2.2
 	github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2 // indirect
 	golang.org/x/net v0.0.0-20190607181551-461777fb6f67

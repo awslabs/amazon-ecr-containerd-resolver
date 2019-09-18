@@ -21,6 +21,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -29,6 +30,7 @@ import (
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/remotes"
+	"github.com/htcat/htcat"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context/ctxhttp"
@@ -38,6 +40,7 @@ import (
 // used to pull images from Amazon ECR.
 type ecrFetcher struct {
 	ecrBase
+	parallelism int
 }
 
 var _ remotes.Fetcher = (*ecrFetcher)(nil)
@@ -96,6 +99,9 @@ func (f *ecrFetcher) fetchLayer(ctx context.Context, desc ocispec.Descriptor) (i
 	}
 
 	downloadURL := aws.StringValue(output.DownloadUrl)
+	if f.parallelism > 0 {
+		return f.fetchLayerHtcat(ctx, desc, downloadURL)
+	}
 	return f.fetchLayerURL(ctx, desc, downloadURL)
 }
 
@@ -142,4 +148,29 @@ func (f *ecrFetcher) doRequest(ctx context.Context, req *http.Request) (*http.Re
 		return nil, errors.Wrap(err, "failed to do request")
 	}
 	return resp, nil
+}
+
+func (f *ecrFetcher) fetchLayerHtcat(ctx context.Context, desc ocispec.Descriptor, downloadURL string) (io.ReadCloser, error) {
+	log.G(ctx).WithField("url", downloadURL).Debug("ecr.fetcher.layer.htcat")
+	parsedURL, err := url.Parse(downloadURL)
+	if err != nil {
+		log.G(ctx).
+			WithError(err).
+			WithField("url", downloadURL).
+			Error("ecr.fetcher.layer.htcat: failed to parse URL")
+		return nil, err
+	}
+	htc := htcat.New(http.DefaultClient, parsedURL, f.parallelism)
+	pr, pw := io.Pipe()
+	go func() {
+		defer pw.Close()
+		_, err := htc.WriteTo(pw)
+		if err != nil {
+			log.G(ctx).
+				WithError(err).
+				WithField("url", downloadURL).
+				Error("ecr.fetcher.layer.htcat: failed to download layer")
+		}
+	}()
+	return pr, nil
 }

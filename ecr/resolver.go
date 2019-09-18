@@ -38,10 +38,11 @@ import (
 var unimplemented = errors.New("unimplemented")
 
 type ecrResolver struct {
-	session     *session.Session
-	clients     map[string]ecrAPI
-	clientsLock sync.Mutex
-	tracker     docker.StatusTracker
+	session                  *session.Session
+	clients                  map[string]ecrAPI
+	clientsLock              sync.Mutex
+	tracker                  docker.StatusTracker
+	layerDownloadParallelism int
 }
 
 // ResolverOption represents a functional option for configuring the ECR
@@ -56,6 +57,10 @@ type ResolverOptions struct {
 	// Tracker is used to track uploads to ECR.  If not specified, an in-memory
 	// tracker is used instead.
 	Tracker docker.StatusTracker
+	// LayerDownloadParallelism configures whether layer parts should be
+	// downloaded in parallel.  If not specified, parallelism is currently
+	// disabled.
+	LayerDownloadParallelism int
 }
 
 // WithSession is a ResolverOption to use a specific AWS session.Session
@@ -70,6 +75,18 @@ func WithSession(session *session.Session) ResolverOption {
 func WithTracker(tracker docker.StatusTracker) ResolverOption {
 	return func(options *ResolverOptions) error {
 		options.Tracker = tracker
+		return nil
+	}
+}
+
+// WithLayerDownloadParallelism is a ResolverOption to configure whether layer
+// parts should be downloaded in parallel.  Layer parallelism is backed by the
+// htcat library and can increase the speed at which layers are downloaded at
+// the cost of increased memory consumption.  It is recommended to test your
+// workload to determine whether the tradeoff is worthwhile.
+func WithLayerDownloadParallelism(parallelism int) ResolverOption {
+	return func(options *ResolverOptions) error {
+		options.LayerDownloadParallelism = parallelism
 		return nil
 	}
 }
@@ -98,9 +115,10 @@ func NewResolver(options ...ResolverOption) (remotes.Resolver, error) {
 		resolverOptions.Tracker = docker.NewInMemoryTracker()
 	}
 	return &ecrResolver{
-		session: resolverOptions.Session,
-		clients: map[string]ecrAPI{},
-		tracker: resolverOptions.Tracker,
+		session:                  resolverOptions.Session,
+		clients:                  map[string]ecrAPI{},
+		tracker:                  resolverOptions.Tracker,
+		layerDownloadParallelism: resolverOptions.LayerDownloadParallelism,
 	}, nil
 }
 
@@ -206,10 +224,11 @@ func (r *ecrResolver) Fetcher(ctx context.Context, ref string) (remotes.Fetcher,
 		return nil, err
 	}
 	return &ecrFetcher{
-		ecrBase{
+		ecrBase: ecrBase{
 			client:  r.getClient(ecrSpec.Region()),
 			ecrSpec: ecrSpec,
 		},
+		parallelism: r.layerDownloadParallelism,
 	}, nil
 }
 

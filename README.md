@@ -52,6 +52,32 @@ separate `Resolver`s to use.
 The canonical `ref` format used by the amazon-ecr-containerd-resolver is 
 `ecr.aws/` followed by the ARN of the repository and a label and/or a digest.
 
+### Parallel downloads
+
+This resolver supports request parallelization for individual layers.  This
+takes advantage of HTTP [range requests](https://tools.ietf.org/html/rfc7233) to
+download different parts of the same file in parallel.  This is an approach to
+achieving higher throughput when [downloading from Amazon
+S3](https://docs.aws.amazon.com/AmazonS3/latest/dev/optimizing-performance-design-patterns.html#optimizing-performance-parallelization),
+which provides the raw blob storage for layers in Amazon ECR.
+
+Request parallelization is not enabled by default, and the default Go HTTP
+client is used instead.  To enable request parallelization, you can use the
+`WithLayerDownloadParallelism` resolver option to set the amount of
+parallelization per layer.
+
+When enabled, the layer will be divided into equal-sized chunks (except for the
+last chunk) and downloaded with the set amount of parallelism.  The chunks range
+in size from 1 MiB to 20 MiB; anything smaller than 1 MiB will not be
+parallelized and anything larger than 20 MiB * *parallelism* will use a larger
+number of chunks (though only with the specified amount of parallelism).
+
+Initial testing suggests that a parallelism setting of `4` results in 3x faster
+layer downloads, but increases the amount of memory consumption between 15-20x.
+Further testing is still needed.
+
+This support is backed by the [htcat library](https://github.com/htcat/htcat).
+
 ## Building
 
 The Amazon ECR containerd resolver manages its dependencies with [Go 1.11
