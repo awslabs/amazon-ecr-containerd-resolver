@@ -39,7 +39,7 @@ err = client.Push(
 	containerd.WithResolver(resolver))
 ```
 
-Two small example programs are provided in the [example](tree/master/example)
+Two small example programs are provided in the [example](example)
 directory demonstrating how to use the resolver with containerd.
 
 ### `ref`
@@ -49,7 +49,7 @@ image names, as `ref`s intend to encode an identifier, but not a retrieval
 mechanism.  `ref`s start with a DNS-style namespace that can be used to select
 separate `Resolver`s to use.
 
-The canonical `ref` format used by the amazon-ecr-containerd-resolver is 
+The canonical `ref` format used by the amazon-ecr-containerd-resolver is
 `ecr.aws/` followed by the ARN of the repository and a label and/or a digest.
 
 ### Parallel downloads
