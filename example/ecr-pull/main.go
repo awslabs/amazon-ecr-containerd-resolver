@@ -40,8 +40,7 @@ func main() {
 	}
 	ref := os.Args[1]
 	parallelism := defaultParallelism
-	parallelismEnv := os.Getenv("ECR_PULL_PARALLEL")
-	if parallelismEnv != "" {
+	if parallelismEnv := os.Getenv("ECR_PULL_PARALLEL"); parallelismEnv != "" {
 		var err error
 		parallelism, err = strconv.Atoi(parallelismEnv)
 		if err != nil {
@@ -49,7 +48,11 @@ func main() {
 		}
 	}
 
-	client, err := containerd.New("/run/containerd/containerd.sock")
+	address := "/run/containerd/containerd.sock"
+	if newAddress := os.Getenv("CONTAINERD_ADDRESS"); newAddress != "" {
+		address = newAddress
+	}
+	client, err := containerd.New(address)
 	if err != nil {
 		log.G(ctx).WithError(err).Fatal("Failed to connect to containerd")
 	}
@@ -89,8 +92,15 @@ func main() {
 	if skipUnpack := os.Getenv("ECR_SKIP_UNPACK"); skipUnpack != "" {
 		return
 	}
-	log.G(ctx).WithField("img", img.Name()).Info("unpacking...")
-	err = img.Unpack(ctx, containerd.DefaultSnapshotter)
+	snapshotter := containerd.DefaultSnapshotter
+	if newSnapshotter := os.Getenv("CONTAINERD_SNAPSHOTTER"); newSnapshotter != "" {
+		snapshotter = newSnapshotter
+	}
+	log.G(ctx).
+		WithField("img", img.Name()).
+		WithField("snapshotter", snapshotter).
+		Info("unpacking...")
+	err = img.Unpack(ctx, snapshotter)
 	if err != nil {
 		log.G(ctx).WithError(err).WithField("img", img.Name).Fatal("Failed to unpack")
 	}
