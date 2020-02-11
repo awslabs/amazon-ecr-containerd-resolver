@@ -21,6 +21,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/arn"
+	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/service/ecr"
 	"github.com/containerd/containerd/reference"
 	"github.com/opencontainers/go-digest"
@@ -30,11 +31,17 @@ import (
 const (
 	refPrefix           = "ecr.aws/"
 	repositoryDelimiter = "/"
+	invalidImageURI = "ecrspec: Invalid image URI"
 )
 
 var (
 	invalidARN = errors.New("ref: invalid ARN")
 	splitRe    = regexp.MustCompile(`[:@]`)
+	// Expecting to match ECR image names of the form:
+	// Example 1: 777777777777.dkr.ecr.us-west-2.amazonaws.com/my_image:latest
+	// Example 2: 777777777777.dkr.ecr.cn-north-1.amazonaws.com.cn/my_image:latest
+	// TODO: Support ECR FIPS endpoints, i.e "ecr-fips" in the URL instead of "ecr"
+	ecrRegex = regexp.MustCompile(`(^[a-zA-Z0-9][a-zA-Z0-9-_]*)\.dkr\.ecr\.([a-zA-Z0-9][a-zA-Z0-9-_]*)\.amazonaws\.com(\.cn)?.*`)
 )
 
 // ECRSpec represents a parsed reference.
@@ -53,6 +60,46 @@ func ParseRef(ref string) (ECRSpec, error) {
 	}
 	stripped := ref[len(refPrefix):]
 	return parseARN(stripped)
+}
+
+// ParseImageURI takes an ECR image URI and then constructs and returns an ECRSpec struct
+func ParseImageURI(input string) (ECRSpec, error) {
+	input = strings.TrimPrefix(input, "https://")
+
+	// Matching on account, region
+	matches := ecrRegex.FindStringSubmatch(input)
+	if len(matches) < 3 {
+		return ECRSpec{}, errors.New(invalidImageURI)
+	}
+	region := matches[2]
+	account := matches[1]
+
+	// Get the correct partition given its region
+	partition, found := endpoints.PartitionForRegion(endpoints.DefaultPartitions(), region)
+	if !found {
+		return ECRSpec{}, errors.New(invalidImageURI)
+	}
+
+	// Need to include the full repository path and the imageID (e.g. /eks/image-name:tag)
+	tokens := strings.SplitN(input, "/", 2)
+	fullRepoPath := tokens[len(tokens)-1]
+
+	// Build the ECR ARN
+	ecrARN := arn.ARN{
+		Partition: partition.ID(),
+		Service:   "ecr",
+		Region:    region,
+		AccountID: account,
+		Resource:  "repository/" + fullRepoPath,
+	}
+	var object string
+	ecrARN.Resource, object = splitResource(ecrARN.Resource)
+
+	return ECRSpec{
+		Repository: fullRepoPath,
+		Object:     object,
+		arn:        ecrARN,
+	}, nil
 }
 
 // Partition returns the AWS partition
@@ -77,19 +124,8 @@ func parseARN(a string) (ECRSpec, error) {
 	if err != nil {
 		return ECRSpec{}, err
 	}
-
-	// remove label & digest
 	var object string
-	if delimiterIndex := splitRe.FindStringIndex(parsed.Resource); delimiterIndex != nil {
-		// This allows us to retain the @ to signify digests or shortened digests in
-		// the object.
-		object = parsed.Resource[delimiterIndex[0]:]
-		// trim leading :
-		if object[:1] == ":" {
-			object = object[1:]
-		}
-		parsed.Resource = parsed.Resource[:delimiterIndex[0]]
-	}
+	parsed.Resource, object = splitResource(parsed.Resource)
 
 	// strip "repository/" prefix
 	repositorySections := strings.SplitN(parsed.Resource, repositoryDelimiter, 2)
@@ -102,6 +138,26 @@ func parseARN(a string) (ECRSpec, error) {
 		Object:     object,
 	}, nil
 
+}
+
+// splitResource parses the resource segment of an ECR ARN, returns the tag/digest (object) and returns the
+// resource segment with the tag/digest (object) removed.
+// An example of an ECR ARN resource is "repository/myimage:mytag" and the object returned is "mytag", resource returned is "repository/myimage"
+// Another example is "repository/myimage@sha256:47bfdb88c..." and the object returned is "@sha256:47bfdb88c...", resource returned is "repository/myimage"
+func splitResource(resource string) (string, string) {
+	// remove label & digest
+	var object string
+	if delimiterIndex := splitRe.FindStringIndex(resource); delimiterIndex != nil {
+		// This allows us to retain the @ to signify digests or shortened digests in
+		// the object.
+		object = resource[delimiterIndex[0]:]
+		// trim leading :
+		if object[:1] == ":" {
+			object = object[1:]
+		}
+		resource = resource[:delimiterIndex[0]]
+	}
+	return resource, object
 }
 
 // Canonical returns the canonical representation for the reference
