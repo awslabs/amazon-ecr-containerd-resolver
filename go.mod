@@ -14,7 +14,6 @@ require (
 	github.com/containerd/typeurl v0.0.0-20190515163108-7312978f2987 // indirect
 	github.com/coreos/go-systemd v0.0.0-20190719114852-fd7a80b32e1f // indirect
 	github.com/docker/distribution v0.0.0-20190205005809-0d3efadf0154 // indirect
-	github.com/docker/docker v0.0.0-20190607191414-238f8eaa31aa
 	github.com/docker/go-events v0.0.0-20170721190031-9461782956ad // indirect
 	github.com/docker/go-units v0.4.0
 	github.com/godbus/dbus v4.1.0+incompatible // indirect
@@ -26,7 +25,7 @@ require (
 	github.com/opencontainers/runc v0.1.1 // indirect
 	github.com/opencontainers/runtime-spec v1.0.1 // indirect
 	github.com/pkg/errors v0.0.0-20190227000051-27936f6d90f9
-	github.com/sirupsen/logrus v1.4.2
+	github.com/sirupsen/logrus v1.4.2 // indirect
 	github.com/stretchr/testify v1.2.2
 	github.com/syndtr/gocapability v0.0.0-20180916011248-d98352740cb2 // indirect
 	golang.org/x/net v0.0.0-20190607181551-461777fb6f67
