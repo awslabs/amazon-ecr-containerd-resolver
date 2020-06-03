@@ -52,8 +52,10 @@ func (p ecrPusher) Push(ctx context.Context, desc ocispec.Descriptor) (content.W
 	switch desc.MediaType {
 	case
 		ocispec.MediaTypeImageManifest,
+		ocispec.MediaTypeImageIndex,
 		images.MediaTypeDockerSchema2Manifest,
-		images.MediaTypeDockerSchema1Manifest:
+		images.MediaTypeDockerSchema1Manifest,
+		images.MediaTypeDockerSchema2ManifestList:
 		return p.pushManifest(ctx, desc)
 	default:
 		return p.pushBlob(ctx, desc)

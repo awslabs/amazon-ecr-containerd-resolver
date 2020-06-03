@@ -59,9 +59,19 @@ func TestParseImageManifestMediaType(t *testing.T) {
 			mediaType: images.MediaTypeDockerSchema2Manifest,
 		},
 		{
+			name:      "schemaVersion:2 docker manifest list",
+			manifest:  `{"schemaVersion": 2, "mediaType": "application/vnd.docker.distribution.manifest.list.v2+json", "manifests": []}`,
+			mediaType: images.MediaTypeDockerSchema2ManifestList,
+		},
+		{
 			name:      "schemaVersion:2 oci",
 			manifest:  `{"schemaVersion": 2, "mediaType": "application/vnd.oci.image.manifest.v1+json"}`,
 			mediaType: ocispec.MediaTypeImageManifest,
+		},
+		{
+			name:      "schemaVersion:2 oci manifest list",
+			manifest:  `{"schemaVersion": 2, "mediaType": "application/vnd.oci.image.index.v1+json", "manifests": []}`,
+			mediaType: ocispec.MediaTypeImageIndex,
 		},
 	}
 	for _, tc := range cases {
