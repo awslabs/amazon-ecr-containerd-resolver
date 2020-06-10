@@ -18,7 +18,6 @@ package ecr
 import (
 	"context"
 	"encoding/json"
-	"strings"
 	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -294,11 +293,20 @@ func (r *ecrResolver) Pusher(ctx context.Context, ref string) (remotes.Pusher, e
 	if err != nil {
 		return nil, err
 	}
-	// TODO block pushing by digest since that's not allowed
-	// see containerd/remotes/docker/resolver.go:218
 
-	if ecrSpec.Object != "" && strings.Contains(ecrSpec.Object, "@") {
+	// ECR does not allow push by digest; references will include a digest when
+	// the ref is being pushed to a tag to denote *which* digest is the root
+	// descriptor in this push.
+	tag, digest := ecrSpec.TagDigest()
+	if tag == "" && digest != "" {
 		return nil, errors.New("pusher: cannot use digest reference for push location")
+	}
+
+	// The root descriptor's digest *must* be provided in order to properly tag
+	// manifests. A ref string will provide this as of containerd v1.3.0 -
+	// earlier versions do not provide it.
+	if digest == "" {
+		return nil, errors.New("pusher: root descriptor missing from push reference")
 	}
 
 	return &ecrPusher{

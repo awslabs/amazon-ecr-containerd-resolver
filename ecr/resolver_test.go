@@ -22,6 +22,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/request"
+	"github.com/aws/aws-sdk-go/awstesting/unit"
 	"github.com/aws/aws-sdk-go/service/ecr"
 	"github.com/containerd/containerd/reference"
 	"github.com/opencontainers/go-digest"
@@ -152,5 +153,21 @@ func TestResolvePusherDenyDigest(t *testing.T) {
 			assert.Nil(t, p)
 		})
 	}
+}
 
+func TestResolvePusherAllowTagDigest(t *testing.T) {
+	for _, ref := range []string{
+		"ecr.aws/arn:aws:ecr:fake:123456789012:repository/foo/bar:with-tag-and-digest@" + testdata.ImageDigest.String(),
+	} {
+		t.Run(ref, func(t *testing.T) {
+			resolver := &ecrResolver{
+				// Stub session
+				session: unit.Session,
+				clients: map[string]ecrAPI{},
+			}
+			p, err := resolver.Pusher(context.Background(), ref)
+			assert.NoError(t, err)
+			assert.NotNil(t, p)
+		})
+	}
 }
