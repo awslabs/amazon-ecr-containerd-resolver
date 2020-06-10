@@ -47,7 +47,7 @@ func main() {
 	}
 
 	log.G(ctx).WithField("sourceRef", sourceRef).Info("Pulling from Amazon ECR")
-	img, err := client.Pull(
+	img, err := client.Fetch(
 		ctx,
 		sourceRef,
 		containerd.WithResolver(resolver),
@@ -55,10 +55,10 @@ func main() {
 	if err != nil {
 		log.G(ctx).WithError(err).WithField("sourceRef", sourceRef).Fatal("Failed to pull")
 	}
-	log.G(ctx).WithField("img", img.Name()).Info("Pulled successfully!")
+	log.G(ctx).WithField("img", img.Name).Info("Pulled successfully!")
 
 	log.G(ctx).WithField("sourceRef", sourceRef).WithField("destRef", destRef).Info("Pushing to Amazon ECR")
-	desc := img.Target()
+	desc := img.Target
 	err = client.Push(ctx, destRef, desc,
 		containerd.WithResolver(resolver),
 	)
