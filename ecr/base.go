@@ -30,7 +30,8 @@ import (
 )
 
 var (
-	errImageNotFound = errors.New("ecr: image not found")
+	errImageNotFound     = errors.New("ecr: image not found")
+	errGetImageUnhandled = errors.New("ecr: unable to get images")
 )
 
 type ecrBase struct {
@@ -51,39 +52,85 @@ type ecrAPI interface {
 	PutImageWithContext(aws.Context, *ecr.PutImageInput, ...request.Option) (*ecr.PutImageOutput, error)
 }
 
-func (b *ecrBase) getManifest(ctx context.Context) (*ecr.Image, error) {
-	imageIdentifier := b.ecrSpec.ImageID()
-	log.G(ctx).WithField("imageIdentifier", imageIdentifier).Debug("ecr.base.manifest")
-	batchGetImageInput := &ecr.BatchGetImageInput{
-		RegistryId:     aws.String(b.ecrSpec.Registry()),
-		RepositoryName: aws.String(b.ecrSpec.Repository),
-		ImageIds:       []*ecr.ImageIdentifier{imageIdentifier},
-		// TODO: Determine if this should be hard-coded
-		AcceptedMediaTypes: []*string{
-			aws.String(ocispec.MediaTypeImageManifest),
-			aws.String(images.MediaTypeDockerSchema2Manifest),
+// getImage fetches the reference's image from ECR.
+func (b *ecrBase) getImage(ctx context.Context) (*ecr.Image, error) {
+	return b.runGetImage(ctx, ecr.BatchGetImageInput{
+		ImageIds: []*ecr.ImageIdentifier{b.ecrSpec.ImageID()},
+		AcceptedMediaTypes: aws.StringSlice([]string{
+			ocispec.MediaTypeImageManifest,
+			images.MediaTypeDockerSchema2Manifest,
+			images.MediaTypeDockerSchema1Manifest,
+		}),
+	})
+}
+
+// getImageByDescriptor retrieves an image from ECR for a given OCI descriptor.
+func (b *ecrBase) getImageByDescriptor(ctx context.Context, desc ocispec.Descriptor) (*ecr.Image, error) {
+	input := ecr.BatchGetImageInput{
+		ImageIds: []*ecr.ImageIdentifier{
+			&ecr.ImageIdentifier{ImageDigest: aws.String(desc.Digest.String())},
 		},
+		AcceptedMediaTypes: aws.StringSlice([]string{
+			ocispec.MediaTypeImageManifest,
+			images.MediaTypeDockerSchema2Manifest,
+			images.MediaTypeDockerSchema1Manifest,
+		}),
+	}
+	// Use mediaType from descriptor when provided.
+	if desc.MediaType != "" {
+		input.AcceptedMediaTypes = []*string{aws.String(desc.MediaType)}
 	}
 
-	batchGetImageOutput, err := b.client.BatchGetImageWithContext(ctx, batchGetImageInput)
+	return b.runGetImage(ctx, input)
+}
+
+// runGetImage submits and handles the response for requests of ECR images.
+func (b *ecrBase) runGetImage(ctx context.Context, batchGetImageInput ecr.BatchGetImageInput) (*ecr.Image, error) {
+	// Allow only a single image to be fetched at a time.
+	if len(batchGetImageInput.ImageIds) != 1 {
+		return nil, errGetImageUnhandled
+	}
+
+	batchGetImageInput.RegistryId = aws.String(b.ecrSpec.Registry())
+	batchGetImageInput.RepositoryName = aws.String(b.ecrSpec.Repository)
+
+	log.G(ctx).WithField("batchGetImageInput", batchGetImageInput).Trace("ecr.base.image: requesting images")
+
+	batchGetImageOutput, err := b.client.BatchGetImageWithContext(ctx, &batchGetImageInput)
 	if err != nil {
-		log.G(ctx).WithError(err).Error("ecr.base.manifest: failed to get image")
+		log.G(ctx).WithError(err).Error("ecr.base.image: failed to get image")
 		fmt.Println(err)
 		return nil, err
 	}
-	log.G(ctx).WithField("batchGetImage", batchGetImageOutput).Debug("ecr.base.manifest")
+	log.G(ctx).WithField("batchGetImageOutput", batchGetImageOutput).Trace("ecr.base.image: api response")
 
-	var ecrImage *ecr.Image
-	if len(batchGetImageOutput.Images) == 0 {
-		if len(batchGetImageOutput.Failures) > 0 &&
-			aws.StringValue(batchGetImageOutput.Failures[0].FailureCode) == ecr.ImageFailureCodeImageNotFound {
+	// Summarize image request failures for handled errors. Only the first
+	// failure is checked as only a single ImageIdentifier is allowed to be
+	// queried for.
+	if len(batchGetImageOutput.Failures) > 0 {
+		failure := batchGetImageOutput.Failures[0]
+		switch aws.StringValue(failure.FailureCode) {
+		// Requested image with a corresponding tag and digest does not exist.
+		// This failure will generally occur when pushing an updated (or new)
+		// image with a tag.
+		case ecr.ImageFailureCodeImageTagDoesNotMatchDigest:
+			log.G(ctx).WithField("failure", failure).Debug("ecr.base.image: no matching image with specified digest")
 			return nil, errImageNotFound
+		// Requested image doesn't resolve to a known image. A new image will
+		// result in an ImageNotFound error when checked before push.
+		case ecr.ImageFailureCodeImageNotFound:
+			log.G(ctx).WithField("failure", failure).Debug("ecr.base.image: no image found")
+			return nil, errImageNotFound
+		// Requested image identifiers are invalid.
+		case ecr.ImageFailureCodeInvalidImageDigest, ecr.ImageFailureCodeInvalidImageTag:
+			log.G(ctx).WithField("failure", failure).Error("ecr.base.image: invalid image identifier")
+			return nil, reference.ErrInvalid
+		// Unhandled failure reported for image request made.
+		default:
+			log.G(ctx).WithField("failure", failure).Warn("ecr.base.image: unhandled image request failure")
+			return nil, errGetImageUnhandled
 		}
-		log.G(ctx).
-			WithField("failures", batchGetImageOutput.Failures).
-			Warn("ecr.base.manifest: unexpected failure")
-		return nil, reference.ErrInvalid
 	}
-	ecrImage = batchGetImageOutput.Images[0]
-	return ecrImage, nil
+
+	return batchGetImageOutput.Images[0], nil
 }

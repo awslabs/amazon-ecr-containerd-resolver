@@ -85,7 +85,7 @@ func (p ecrPusher) pushManifest(ctx context.Context, desc ocispec.Descriptor) (c
 }
 
 func (p ecrPusher) checkManifestExistence(ctx context.Context, desc ocispec.Descriptor) (bool, error) {
-	image, err := p.getManifest(ctx)
+	image, err := p.getImage(ctx)
 	if err != nil {
 		if err == errImageNotFound {
 			return false, nil
