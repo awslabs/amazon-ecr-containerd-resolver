@@ -109,8 +109,17 @@ func (f *ecrFetcher) fetchForeignLayer(ctx context.Context, desc ocispec.Descrip
 	if len(desc.URLs) < 1 {
 		log.G(ctx).Error("cannot pull foreign layer without URL")
 	}
-	// TODO try more than one URL
-	return f.fetchLayerURL(ctx, desc, desc.URLs[0])
+	var err error
+	for _, layerURL := range desc.URLs {
+		log.G(ctx).WithField("url", layerURL).Debug("ecr.fetcher.layer.foreign: fetching from URL")
+		var rdc io.ReadCloser
+		rdc, err = f.fetchLayerURL(ctx, desc, layerURL)
+		if err == nil {
+			return rdc, nil
+		}
+		log.G(ctx).WithField("url", layerURL).WithError(err).Warn("ecr.fetcher.layer.foreign: unable to fetch from URL")
+	}
+	return nil, err
 }
 
 func (f *ecrFetcher) fetchLayerURL(ctx context.Context, desc ocispec.Descriptor, downloadURL string) (io.ReadCloser, error) {

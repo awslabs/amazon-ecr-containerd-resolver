@@ -50,11 +50,7 @@ func TestFetchUnimplemented(t *testing.T) {
 
 func TestFetchForeignLayer(t *testing.T) {
 	// setup
-	expectedBody := "hello this is dog"
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, expectedBody)
-	}))
-	defer ts.Close()
+	const expectedBody = "hello, this is dog"
 
 	fetcher := &ecrFetcher{}
 
@@ -64,10 +60,24 @@ func TestFetchForeignLayer(t *testing.T) {
 		images.MediaTypeDockerSchema2LayerForeignGzip,
 	} {
 		t.Run(mediaType, func(t *testing.T) {
+			requests := 0
+			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requests++
+				if r.URL.Path == "/missing" {
+					w.WriteHeader(http.StatusNotFound)
+					return
+				}
+				fmt.Fprint(w, expectedBody)
+			}))
+			defer ts.Close()
+
 			// input
 			desc := ocispec.Descriptor{
 				MediaType: mediaType,
-				URLs:      []string{ts.URL},
+				URLs: []string{
+					ts.URL + "/missing",
+					ts.URL + "/ok",
+				},
 			}
 
 			reader, err := fetcher.Fetch(context.Background(), desc)
@@ -77,6 +87,8 @@ func TestFetchForeignLayer(t *testing.T) {
 			output, err := ioutil.ReadAll(reader)
 			assert.NoError(t, err, "should have a valid byte buffer")
 			assert.Equal(t, expectedBody, string(output))
+
+			assert.Equal(t, requests, len(desc.URLs), "should have tried all URLs until success")
 		})
 	}
 }
