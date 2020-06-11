@@ -58,8 +58,6 @@ func (p ecrPusher) Push(ctx context.Context, desc ocispec.Descriptor) (content.W
 	default:
 		return p.pushBlob(ctx, desc)
 	}
-
-	return nil, unimplemented
 }
 
 func (p ecrPusher) pushManifest(ctx context.Context, desc ocispec.Descriptor) (content.Writer, error) {

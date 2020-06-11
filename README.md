@@ -1,6 +1,6 @@
 # Amazon ECR containerd resolver
 
-[![Build Status](https://travis-ci.org/awslabs/amazon-ecr-containerd-resolver.svg?branch=master)](https://travis-ci.org/awslabs/amazon-ecr-containerd-resolver)
+![.github/workflows/ci.yml](https://github.com/awslabs/amazon-ecr-containerd-resolver/workflows/.github/workflows/ci.yml/badge.svg)
 
 The Amazon ECR containerd resolver is an implementation of a
 [containerd](https://github.com/containerd/containerd)
