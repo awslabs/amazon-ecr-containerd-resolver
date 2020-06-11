@@ -99,7 +99,7 @@ func TestLayerWriter(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, len(layerData), n)
 
-	err = lw.Commit(context.TODO(), int64(len(layerData)), desc.Digest)
+	err = lw.Commit(context.Background(), int64(len(layerData)), desc.Digest)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, completeLayerUploadCount)
 }
