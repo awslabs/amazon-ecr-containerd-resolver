@@ -29,6 +29,7 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestLayerWriter(t *testing.T) {
@@ -94,6 +95,9 @@ func TestLayerWriter(t *testing.T) {
 	assert.Equal(t, 1, initiateLayerUploadCount)
 	assert.Equal(t, 0, uploadLayerPartCount)
 	assert.Equal(t, 0, completeLayerUploadCount)
+
+	// Writer is required to proceed any farther.
+	require.NotNil(t, lw)
 
 	n, err := lw.Write([]byte(layerData))
 	assert.NoError(t, err)
