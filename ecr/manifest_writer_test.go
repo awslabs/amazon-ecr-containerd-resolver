@@ -23,6 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/arn"
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ecr"
+	"github.com/awslabs/amazon-ecr-containerd-resolver/ecr/internal/testdata"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/opencontainers/go-digest"
 	"github.com/stretchr/testify/assert"
@@ -33,7 +34,7 @@ func TestManifestWriterCommit(t *testing.T) {
 	registry := "registry"
 	repository := "repository"
 	imageTag := "tag"
-	imageDigest := "digest"
+	imageDigest := testdata.InsignificantDigest.String()
 	refKey := "refKey"
 	callCount := 0
 	client := &fakeECRClient{

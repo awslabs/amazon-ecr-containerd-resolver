@@ -24,6 +24,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/arn"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ecr"
+	"github.com/awslabs/amazon-ecr-containerd-resolver/ecr/internal/testdata"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -34,7 +35,7 @@ func TestLayerWriter(t *testing.T) {
 	registry := "registry"
 	repository := "repository"
 	layerData := "layer"
-	layerDigest := "digest"
+	layerDigest := testdata.InsignificantDigest.String()
 	uploadID := "upload"
 	initiateLayerUploadCount, uploadLayerPartCount, completeLayerUploadCount := 0, 0, 0
 	client := &fakeECRClient{

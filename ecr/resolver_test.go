@@ -28,6 +28,8 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/awslabs/amazon-ecr-containerd-resolver/ecr/internal/testdata"
 )
 
 func TestParseImageManifestMediaType(t *testing.T) {
@@ -80,7 +82,7 @@ func TestResolve(t *testing.T) {
 	expectedImageTag := "latest"
 
 	// API output
-	imageDigest := "sha256:digest"
+	imageDigest := testdata.ImageDigest.String()
 	imageManifest := `{"schemaVersion": 2, "mediaType": "application/vnd.oci.image.manifest.v1+json"}`
 	image := &ecr.Image{
 		RepositoryName: aws.String(expectedRepository),
@@ -158,8 +160,15 @@ func TestResolveNoResult(t *testing.T) {
 }
 
 func TestResolvePusherDenyDigest(t *testing.T) {
-	ref := "ecr.aws/arn:aws:ecr:fake:123456789012:repository/foo/bar:latest@sha256:digest"
-	resolver := &ecrResolver{}
-	_, err := resolver.Pusher(context.Background(), ref)
-	assert.Error(t, err)
+	for _, ref := range []string{
+		"ecr.aws/arn:aws:ecr:fake:123456789012:repository/foo/bar@" + testdata.ImageDigest.String(),
+	} {
+		t.Run(ref, func(t *testing.T) {
+			resolver := &ecrResolver{}
+			p, err := resolver.Pusher(context.Background(), ref)
+			assert.Error(t, err)
+			assert.Nil(t, p)
+		})
+	}
+
 }

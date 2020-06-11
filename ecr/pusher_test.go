@@ -24,6 +24,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/arn"
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ecr"
+	"github.com/awslabs/amazon-ecr-containerd-resolver/ecr/internal/testdata"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/remotes"
@@ -39,7 +40,7 @@ func TestPushManifestReturnsManifestWriter(t *testing.T) {
 	registry := "registry"
 	repository := "repository"
 	imageTag := "tag"
-	imageDigest := "digest"
+	imageDigest := testdata.InsignificantDigest.String()
 	fakeClient := &fakeECRClient{}
 	pusher := &ecrPusher{
 		ecrBase: ecrBase{
@@ -109,7 +110,7 @@ func TestPushManifestAlreadyExists(t *testing.T) {
 	registry := "registry"
 	repository := "repository"
 	imageTag := "tag"
-	imageDigest := "digest"
+	imageDigest := testdata.InsignificantDigest.String()
 	fakeClient := &fakeECRClient{
 		BatchGetImageFn: func(aws.Context, *ecr.BatchGetImageInput, ...request.Option) (*ecr.BatchGetImageOutput, error) {
 			return &ecr.BatchGetImageOutput{
@@ -158,7 +159,7 @@ func TestPushManifestAlreadyExists(t *testing.T) {
 func TestPushBlobReturnsLayerWriter(t *testing.T) {
 	registry := "registry"
 	repository := "repository"
-	layerDigest := "digest"
+	layerDigest := testdata.InsignificantDigest.String()
 	fakeClient := &fakeECRClient{
 		InitiateLayerUploadFn: func(*ecr.InitiateLayerUploadInput) (*ecr.InitiateLayerUploadOutput, error) {
 			// layerWriter calls this during its constructor
@@ -231,7 +232,7 @@ func TestPushBlobReturnsLayerWriter(t *testing.T) {
 func TestPushBlobAlreadyExists(t *testing.T) {
 	registry := "registry"
 	repository := "repository"
-	layerDigest := "digest"
+	layerDigest := testdata.InsignificantDigest.String()
 	fakeClient := &fakeECRClient{
 		BatchCheckLayerAvailabilityFn: func(aws.Context, *ecr.BatchCheckLayerAvailabilityInput, ...request.Option) (*ecr.BatchCheckLayerAvailabilityOutput, error) {
 			return &ecr.BatchCheckLayerAvailabilityOutput{
@@ -279,7 +280,7 @@ func TestPushBlobAlreadyExists(t *testing.T) {
 func TestPushBlobAPIError(t *testing.T) {
 	registry := "registry"
 	repository := "repository"
-	layerDigest := "digest"
+	layerDigest := testdata.InsignificantDigest.String()
 	fakeClient := &fakeECRClient{
 		BatchCheckLayerAvailabilityFn: func(aws.Context, *ecr.BatchCheckLayerAvailabilityInput, ...request.Option) (*ecr.BatchCheckLayerAvailabilityOutput, error) {
 			return &ecr.BatchCheckLayerAvailabilityOutput{
