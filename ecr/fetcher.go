@@ -168,7 +168,8 @@ func (f *ecrFetcher) fetchLayerURL(ctx context.Context, desc ocispec.Descriptor,
 }
 
 func (f *ecrFetcher) doRequest(ctx context.Context, req *http.Request) (*http.Response, error) {
-	client := http.DefaultClient // TODO
+	// TODO: use configurable http.Client
+	client := http.DefaultClient
 	resp, err := ctxhttp.Do(ctx, client, req)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to do request")
