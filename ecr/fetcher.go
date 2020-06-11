@@ -72,7 +72,6 @@ func (f *ecrFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.Rea
 			Error("ecr.fetcher: unimplemented media type")
 		return nil, unimplemented
 	}
-	return nil, unimplemented
 }
 
 func (f *ecrFetcher) fetchManifest(ctx context.Context, desc ocispec.Descriptor) (io.ReadCloser, error) {

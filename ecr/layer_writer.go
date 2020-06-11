@@ -71,6 +71,7 @@ func newLayerWriter(base *ecrBase, tracker docker.StatusTracker, ref string, des
 	}
 	initiateLayerUploadOutput, err := base.client.InitiateLayerUpload(initiateLayerUploadInput)
 	if err != nil {
+		cancel()
 		return nil, err
 	}
 	lw.uploadID = aws.StringValue(initiateLayerUploadOutput.UploadId)
