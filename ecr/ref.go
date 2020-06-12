@@ -36,7 +36,6 @@ const (
 
 var (
 	invalidARN = errors.New("ref: invalid ARN")
-	splitRe    = regexp.MustCompile(`[:@]`)
 	// Expecting to match ECR image names of the form:
 	// Example 1: 777777777777.dkr.ecr.us-west-2.amazonaws.com/my_image:latest
 	// Example 2: 777777777777.dkr.ecr.cn-north-1.amazonaws.com.cn/my_image:latest
