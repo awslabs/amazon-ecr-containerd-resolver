@@ -29,9 +29,9 @@ import (
 )
 
 const (
-	refPrefix           = "ecr.aws/"
-	repositoryDelimiter = "/"
-	invalidImageURI = "ecrspec: Invalid image URI"
+	refPrefix        = "ecr.aws/"
+	repositoryPrefix = "repository/"
+	arnServiceID     = "ecr"
 )
 
 var (
@@ -41,7 +41,8 @@ var (
 	// Example 1: 777777777777.dkr.ecr.us-west-2.amazonaws.com/my_image:latest
 	// Example 2: 777777777777.dkr.ecr.cn-north-1.amazonaws.com.cn/my_image:latest
 	// TODO: Support ECR FIPS endpoints, i.e "ecr-fips" in the URL instead of "ecr"
-	ecrRegex = regexp.MustCompile(`(^[a-zA-Z0-9][a-zA-Z0-9-_]*)\.dkr\.ecr\.([a-zA-Z0-9][a-zA-Z0-9-_]*)\.amazonaws\.com(\.cn)?.*`)
+	ecrRegex           = regexp.MustCompile(`(^[a-zA-Z0-9][a-zA-Z0-9-_]*)\.dkr\.ecr\.([a-zA-Z0-9][a-zA-Z0-9-_]*)\.amazonaws\.com(\.cn)?.*`)
+	errInvalidImageURI = errors.New("ecrspec: invalid image URI")
 )
 
 // ECRSpec represents a parsed reference.
@@ -69,36 +70,64 @@ func ParseImageURI(input string) (ECRSpec, error) {
 	// Matching on account, region
 	matches := ecrRegex.FindStringSubmatch(input)
 	if len(matches) < 3 {
-		return ECRSpec{}, errors.New(invalidImageURI)
+		return ECRSpec{}, errInvalidImageURI
 	}
-	region := matches[2]
 	account := matches[1]
+	region := matches[2]
 
 	// Get the correct partition given its region
 	partition, found := endpoints.PartitionForRegion(endpoints.DefaultPartitions(), region)
 	if !found {
-		return ECRSpec{}, errors.New(invalidImageURI)
+		return ECRSpec{}, errInvalidImageURI
 	}
 
 	// Need to include the full repository path and the imageID (e.g. /eks/image-name:tag)
 	tokens := strings.SplitN(input, "/", 2)
-	fullRepoPath := tokens[len(tokens)-1]
-
-	// Build the ECR ARN
-	ecrARN := arn.ARN{
-		Partition: partition.ID(),
-		Service:   "ecr",
-		Region:    region,
-		AccountID: account,
-		Resource:  "repository/" + fullRepoPath,
+	if len(tokens) != 2 {
+		return ECRSpec{}, errInvalidImageURI
 	}
-	var object string
-	ecrARN.Resource, object = splitResource(ecrARN.Resource)
+
+	fullRepoPath := tokens[len(tokens)-1]
+	// Run simple checks on the provided repository.
+	switch {
+	case
+		// Must not be empty
+		fullRepoPath == "",
+		// Must not have a partial/unsupplied label
+		strings.HasSuffix(fullRepoPath, ":"),
+		// Must not have a partial/unsupplied digest specifier
+		strings.HasSuffix(fullRepoPath, "@"):
+		return ECRSpec{}, errors.New("incomplete reference provided")
+	}
+
+	// Parse out image reference's to validate.
+	ref, err := reference.Parse(repositoryPrefix + fullRepoPath)
+	if err != nil {
+		return ECRSpec{}, err
+	}
+	// If the digest is provided, check that it is valid.
+	if ref.Digest() != "" {
+		err := ref.Digest().Validate()
+		// Digest may not be supported by the client despite it passing against
+		// a rudimentary check. The error is different in the passing case, so
+		// that's considered a passing check for unavailable digesters.
+		//
+		// https://github.com/opencontainers/go-digest/blob/ea51bea511f75cfa3ef6098cc253c5c3609b037a/digest.go#L110-L115
+		if err != nil && err != digest.ErrDigestUnsupported {
+			return ECRSpec{}, errors.Wrap(err, errInvalidImageURI.Error())
+		}
+	}
 
 	return ECRSpec{
-		Repository: fullRepoPath,
-		Object:     object,
-		arn:        ecrARN,
+		Repository: strings.TrimPrefix(ref.Locator, repositoryPrefix),
+		Object:     ref.Object,
+		arn: arn.ARN{
+			Partition: partition.ID(),
+			Service:   arnServiceID,
+			Region:    region,
+			AccountID: account,
+			Resource:  ref.Locator,
+		},
 	}, nil
 }
 
@@ -124,40 +153,25 @@ func parseARN(a string) (ECRSpec, error) {
 	if err != nil {
 		return ECRSpec{}, err
 	}
-	var object string
-	parsed.Resource, object = splitResource(parsed.Resource)
 
-	// strip "repository/" prefix
-	repositorySections := strings.SplitN(parsed.Resource, repositoryDelimiter, 2)
-	if len(repositorySections) != 2 {
+	spec, err := reference.Parse(parsed.Resource)
+	if err != nil {
+		return ECRSpec{}, err
+	}
+	parsed.Resource = spec.Locator
+
+	// Extract unprefixed repo name contained in the resource part.
+	unprefixedRepo := strings.TrimPrefix(parsed.Resource, repositoryPrefix)
+	if unprefixedRepo == parsed.Resource {
 		return ECRSpec{}, invalidARN
 	}
+
 	return ECRSpec{
 		arn:        parsed,
-		Repository: repositorySections[1],
-		Object:     object,
+		Repository: unprefixedRepo,
+		Object:     spec.Object,
 	}, nil
 
-}
-
-// splitResource parses the resource segment of an ECR ARN, returns the tag/digest (object) and returns the
-// resource segment with the tag/digest (object) removed.
-// An example of an ECR ARN resource is "repository/myimage:mytag" and the object returned is "mytag", resource returned is "repository/myimage"
-// Another example is "repository/myimage@sha256:47bfdb88c..." and the object returned is "@sha256:47bfdb88c...", resource returned is "repository/myimage"
-func splitResource(resource string) (string, string) {
-	// remove label & digest
-	var object string
-	if delimiterIndex := splitRe.FindStringIndex(resource); delimiterIndex != nil {
-		// This allows us to retain the @ to signify digests or shortened digests in
-		// the object.
-		object = resource[delimiterIndex[0]:]
-		// trim leading :
-		if object[:1] == ":" {
-			object = object[1:]
-		}
-		resource = resource[:delimiterIndex[0]]
-	}
-	return resource, object
 }
 
 // Canonical returns the canonical representation for the reference
