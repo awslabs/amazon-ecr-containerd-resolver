@@ -24,6 +24,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/arn"
 	"github.com/aws/aws-sdk-go/service/ecr"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestRefRepresentations(t *testing.T) {
@@ -203,6 +204,11 @@ func TestParseImageURIValid(t *testing.T) {
 			"ecr.aws/arn:aws:ecr:us-west-2:777777777777:repository/my_image@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
 		},
 		{
+			"Standard: Digests with additional repository path",
+			"777777777777.dkr.ecr.us-west-2.amazonaws.com/baz/my_image@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+			"ecr.aws/arn:aws:ecr:us-west-2:777777777777:repository/baz/my_image@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+		},
+		{
 			"AWS CN partition",
 			"777777777777.dkr.ecr.cn-north-1.amazonaws.com.cn/my_image:latest",
 			"ecr.aws/arn:aws-cn:ecr:cn-north-1:777777777777:repository/my_image:latest",
@@ -220,8 +226,9 @@ func TestParseImageURIValid(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Logf("input: %q", tc.imageName)
 			result, err := ParseImageURI(tc.imageName)
-			assert.NoError(t, err, "failed to convert image name into ref")
+			require.NoError(t, err, "failed to convert image name into ref")
 			assert.Equal(t, tc.expected, result.Canonical())
 		})
 	}
@@ -249,9 +256,35 @@ func TestParseImageURIInvalid(t *testing.T) {
 			"not an ecr image",
 			"docker.io/library/hello-world",
 		},
+		{
+			"missing repository",
+			"777777777777.dkr.ecr.us-west-2.amazonaws.com/",
+		},
+		{
+			"missing digest value",
+			"777777777777.dkr.ecr.us-west-2.amazonaws.com/repo-name@",
+		},
+		{
+			"missing label value",
+			"777777777777.dkr.ecr.us-west-2.amazonaws.com/repo-name:",
+		},
+		{
+			"missing name and label value",
+			"777777777777.dkr.ecr.us-west-2.amazonaws.com/:",
+		},
+		{
+			"missing typed digest part",
+			"777777777777.dkr.ecr.us-west-2.amazonaws.com/repo-name@sha256:",
+		},
+		{
+			"invalid typed digest part",
+			"777777777777.dkr.ecr.us-west-2.amazonaws.com/repo-name@sha256:invalid-digest-value",
+		},
 	}
+
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Logf("input: %q", tc.imageName)
 			_, err := ParseImageURI(tc.imageName)
 			assert.Error(t, err)
 		})
