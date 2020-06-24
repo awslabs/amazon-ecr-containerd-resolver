@@ -52,11 +52,11 @@ func (f *ecrFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.Rea
 	// need to do different things based on the media type
 	switch desc.MediaType {
 	case
-		ocispec.MediaTypeImageManifest,
-		ocispec.MediaTypeImageIndex,
 		images.MediaTypeDockerSchema1Manifest,
 		images.MediaTypeDockerSchema2Manifest,
-		images.MediaTypeDockerSchema2ManifestList:
+		images.MediaTypeDockerSchema2ManifestList,
+		ocispec.MediaTypeImageIndex,
+		ocispec.MediaTypeImageManifest:
 		return f.fetchManifest(ctx, desc)
 	case
 		images.MediaTypeDockerSchema2Layer,

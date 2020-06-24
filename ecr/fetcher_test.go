@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright 2017-2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"). You
  * may not use this file except in compliance with the License. A copy of
@@ -123,13 +123,7 @@ func TestFetchManifest(t *testing.T) {
 	)
 
 	// Test all supported media types
-	for _, mediaType := range []string{
-		ocispec.MediaTypeImageManifest,
-		ocispec.MediaTypeImageIndex,
-		images.MediaTypeDockerSchema2Manifest,
-		images.MediaTypeDockerSchema1Manifest,
-		images.MediaTypeDockerSchema2ManifestList,
-	} {
+	for _, mediaType := range supportedImageMediaTypes {
 		// Test variants of Object (tag, digest, and combination).
 		for _, testObject := range []struct {
 			ImageIdentifier ecr.ImageIdentifier
@@ -162,12 +156,6 @@ func TestFetchManifest(t *testing.T) {
 				desc.Digest = digest.Digest(aws.StringValue(testObject.ImageIdentifier.ImageDigest))
 			}
 
-			supportedImageMediaTypes := []string{
-				ocispec.MediaTypeImageManifest,
-				images.MediaTypeDockerSchema2Manifest,
-				images.MediaTypeDockerSchema1Manifest,
-			}
-
 			t.Run(mediaType+"_"+testObject.Object, func(t *testing.T) {
 				callCount := 0
 				fakeClient.BatchGetImageFn = func(_ aws.Context, input *ecr.BatchGetImageInput, _ ...request.Option) (*ecr.BatchGetImageOutput, error) {
@@ -179,14 +167,17 @@ func TestFetchManifest(t *testing.T) {
 
 					// Fetching populated descriptors uses a narrower requested
 					// content type.
+					requestedTypes := aws.StringValueSlice(input.AcceptedMediaTypes)
+					t.Logf("requestedTypes: %q", requestedTypes)
 					if testObject.ImageIdentifier.ImageDigest != nil {
-						assert.Equal(t,
-							[]string{desc.MediaType},
-							aws.StringValueSlice(input.AcceptedMediaTypes),
+						expectedTypes := []string{desc.MediaType}
+						t.Logf("expectedTypes: %q", expectedTypes)
+						assert.Equal(t, expectedTypes, requestedTypes,
 							"mediaType should match the descriptor")
 					} else {
-						assert.Equal(t, supportedImageMediaTypes,
-							aws.StringValueSlice(input.AcceptedMediaTypes),
+						expectedTypes := supportedImageMediaTypes
+						t.Logf("expectedTypes: %q", expectedTypes)
+						assert.Equal(t, expectedTypes, requestedTypes,
 							"mediaType should allow any supported type")
 					}
 

@@ -57,13 +57,7 @@ func TestPushManifestReturnsManifestWriter(t *testing.T) {
 	}
 
 	// test all supported media types
-	for _, mediaType := range []string{
-		ocispec.MediaTypeImageManifest,
-		ocispec.MediaTypeImageIndex,
-		images.MediaTypeDockerSchema1Manifest,
-		images.MediaTypeDockerSchema2Manifest,
-		images.MediaTypeDockerSchema2ManifestList,
-	} {
+	for _, mediaType := range supportedImageMediaTypes {
 		t.Run(mediaType, func(t *testing.T) {
 			callCount := 0
 

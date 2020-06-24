@@ -18,7 +18,6 @@ package ecr
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"strings"
 	"sync"
 
@@ -26,6 +25,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ecr"
 	ecrsdk "github.com/aws/aws-sdk-go/service/ecr"
+	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/reference"
@@ -33,6 +33,7 @@ import (
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
 )
 
 var unimplemented = errors.New("unimplemented")
@@ -137,13 +138,10 @@ func (r *ecrResolver) Resolve(ctx context.Context, ref string) (string, ocispec.
 	}
 
 	batchGetImageInput := &ecr.BatchGetImageInput{
-		RegistryId:     aws.String(ecrSpec.Registry()),
-		RepositoryName: aws.String(ecrSpec.Repository),
-		ImageIds:       []*ecr.ImageIdentifier{ecrSpec.ImageID()},
-		AcceptedMediaTypes: []*string{
-			aws.String(ocispec.MediaTypeImageManifest),
-			aws.String(images.MediaTypeDockerSchema2Manifest),
-		},
+		RegistryId:         aws.String(ecrSpec.Registry()),
+		RepositoryName:     aws.String(ecrSpec.Repository),
+		ImageIds:           []*ecr.ImageIdentifier{ecrSpec.ImageID()},
+		AcceptedMediaTypes: aws.StringSlice(supportedImageMediaTypes),
 	}
 
 	client := r.getClient(ecrSpec.Region())
@@ -161,20 +159,39 @@ func (r *ecrResolver) Resolve(ctx context.Context, ref string) (string, ocispec.
 		WithField("batchGetImageOutput", batchGetImageOutput).
 		Debug("ecr.resolver.resolve")
 
-	var ecrImage *ecr.Image
 	if len(batchGetImageOutput.Images) == 0 {
 		return "", ocispec.Descriptor{}, reference.ErrInvalid
 	}
-	ecrImage = batchGetImageOutput.Images[0]
+	ecrImage := batchGetImageOutput.Images[0]
+
 	mediaType := parseImageManifestMediaType(ctx, aws.StringValue(ecrImage.ImageManifest))
 	log.G(ctx).
 		WithField("ref", ref).
-		WithField("media type", mediaType).
+		WithField("mediaType", mediaType).
 		Debug("ecr.resolver.resolve")
+	// check resolved image's mediaType, it should be one of the specified in
+	// the request.
+	for i, accepted := range aws.StringValueSlice(batchGetImageInput.AcceptedMediaTypes) {
+		if mediaType == accepted {
+			break
+		}
+		if i+1 == len(batchGetImageInput.AcceptedMediaTypes) {
+			log.G(ctx).
+				WithField("ref", ref).
+				WithField("mediaType", mediaType).
+				Debug("ecr.resolver.resolve: unrequested mediaType, deferring to caller")
+		}
+	}
+
 	desc := ocispec.Descriptor{
 		Digest:    digest.Digest(aws.StringValue(ecrImage.ImageId.ImageDigest)),
 		MediaType: mediaType,
 		Size:      int64(len(aws.StringValue(ecrImage.ImageManifest))),
+	}
+	// assert matching digest if the provided ref includes one.
+	if expectedDigest := ecrSpec.Spec().Digest().String(); expectedDigest != "" &&
+		desc.Digest.String() != expectedDigest {
+		return "", ocispec.Descriptor{}, errors.Wrap(errdefs.ErrFailedPrecondition, "resolved image digest mismatch")
 	}
 
 	return ecrSpec.Canonical(), desc, nil
