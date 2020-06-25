@@ -4,11 +4,12 @@ import (
   ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-var OCIImageManifest = MediaTypeSample{
+var OCIImageManifest MediaTypeSample = &mediaTypeSample{
 	mediaType: ocispec.MediaTypeImageManifest,
 	content: `
 {
   "schemaVersion": 2,
+  "mediaType": "application/vnd.oci.image.manifest.v1+json",
   "config": {
     "mediaType": "application/vnd.oci.image.config.v1+json",
     "digest": "sha256:a6ff6fb34ad5a20c2b2371013918a9f0e033a77460b2f17a4041e02bd3d252d0",
@@ -25,11 +26,12 @@ var OCIImageManifest = MediaTypeSample{
 `,
 }
 
-var OCIImageIndex = MediaTypeSample{
+var OCIImageIndex MediaTypeSample = &mediaTypeSample{
 	mediaType: ocispec.MediaTypeImageIndex,
 	content: `
 {
   "schemaVersion": 2,
+  "mediaType": "application/vnd.oci.image.index.v1+json",
   "manifests": [
     {
       "mediaType": "application/vnd.oci.image.manifest.v1+json",

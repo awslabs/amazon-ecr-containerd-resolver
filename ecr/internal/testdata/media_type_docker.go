@@ -9,7 +9,7 @@ import "github.com/containerd/containerd/images"
 //
 // https://github.com/docker/distribution/blob/742aab907b54a367e1ac7033fb9fe73b0e7344f5/docs/spec/manifest-v2-2.md#example-image-manifest
 //
-var DockerSchema2Manifest = MediaTypeSample{
+var DockerSchema2Manifest MediaTypeSample = &mediaTypeSample{
 	mediaType: images.MediaTypeDockerSchema2Manifest,
 	content: `
 {
@@ -49,7 +49,7 @@ var DockerSchema2Manifest = MediaTypeSample{
 //
 // https://github.com/docker/distribution/blob/742aab907b54a367e1ac7033fb9fe73b0e7344f5/docs/spec/manifest-v2-2.md#example-manifest-list
 //
-var DockerSchema2ManifestList = MediaTypeSample{
+var DockerSchema2ManifestList = &mediaTypeSample{
 	mediaType: images.MediaTypeDockerSchema2ManifestList,
 	content: `
 {
@@ -91,7 +91,7 @@ var DockerSchema2ManifestList = MediaTypeSample{
 //
 // https://github.com/docker/distribution/blob/742aab907b54a367e1ac7033fb9fe73b0e7344f5/docs/spec/manifest-v2-1.md#example-manifest
 //
-var DockerSchema1ManifestUnsigned = MediaTypeSample{
+var DockerSchema1ManifestUnsigned = &mediaTypeSample{
 	mediaType: "application/vnd.docker.distribution.manifest.v1+json",
 	content: `
 {
@@ -132,7 +132,7 @@ var DockerSchema1ManifestUnsigned = MediaTypeSample{
 //
 // https://github.com/docker/distribution/blob/742aab907b54a367e1ac7033fb9fe73b0e7344f5/docs/spec/manifest-v2-1.md#example-manifest
 //
-var DockerSchema1Manifest = MediaTypeSample{
+var DockerSchema1Manifest MediaTypeSample = &mediaTypeSample{
 	mediaType: images.MediaTypeDockerSchema1Manifest,
 	content: `
 {

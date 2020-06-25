@@ -164,7 +164,15 @@ func (r *ecrResolver) Resolve(ctx context.Context, ref string) (string, ocispec.
 	}
 	ecrImage := batchGetImageOutput.Images[0]
 
-	mediaType := parseImageManifestMediaType(ctx, aws.StringValue(ecrImage.ImageManifest))
+	mediaType := aws.StringValue(ecrImage.ImageManifestMediaType)
+	if mediaType == "" {
+		manifestBody := aws.StringValue(ecrImage.ImageManifest)
+		log.G(ctx).
+			WithField("ref", ref).
+			WithField("manifest", manifestBody).
+			Trace("ecr.resolver.resolve: parsing mediaType from manifest")
+		mediaType = parseImageManifestMediaType(ctx, manifestBody)
+	}
 	log.G(ctx).
 		WithField("ref", ref).
 		WithField("mediaType", mediaType).
@@ -206,29 +214,60 @@ func (r *ecrResolver) getClient(region string) ecrAPI {
 	return r.clients[region]
 }
 
-type manifestContent struct {
-	SchemaVersion int64         `json:"schemaVersion"`
-	Signatures    []interface{} `json:"signatures,omitempty"`
-	MediaType     string        `json:"mediaType,omitempty"`
+// manifestProbe provides a structure to parse and then probe a given manifest
+// to determine its mediaType.
+type manifestProbe struct {
+	// SchemaVersion is version identifier for the manifest schema used.
+	SchemaVersion int64 `json:"schemaVersion"`
+	// Explicit MediaType assignment for the manifest.
+	MediaType string `json:"mediaType,omitempty"`
+	// Docker Schema 1 signatures.
+	Signatures []json.RawMessage `json:"signatures,omitempty"`
+	// OCI or Docker Manifest Lists, the list of descriptors has mediaTypes
+	// embedded.
+	Manifests []json.RawMessage `json:"manifests,omitempty"`
 }
 
+// TODO: add error to signal unparsable and unhandled manifest types.
 func parseImageManifestMediaType(ctx context.Context, body string) string {
-	var manifest manifestContent
+	// The unsigned variant of Docker v2 Schema 1 manifest mediaType.
+	const mediaTypeDockerSchema1ManifestUnsigned = "application/vnd.docker.distribution.manifest.v1+json"
+
+	// The type used as a fallback when parsing is not possible.
+	const unparsedMediaType = images.MediaTypeDockerSchema2Manifest
+
+	var manifest manifestProbe
 	err := json.Unmarshal([]byte(body), &manifest)
 	if err != nil {
-		log.G(ctx).WithError(err).Warn("ecr.resolver.resolve: could not parse manifest")
-		// default to schema 2 for now
-		return images.MediaTypeDockerSchema2Manifest
+		log.G(ctx).WithField("manifest", body).
+			WithError(err).Warn("ecr.resolver.resolve: could not parse manifest")
+		return unparsedMediaType
 	}
-	if manifest.SchemaVersion == 2 {
-		return manifest.MediaType
-	} else if manifest.SchemaVersion == 1 {
-		if len(manifest.Signatures) == 0 {
-			// unsigned
-			return "application/vnd.docker.distribution.manifest.v1+json"
-		} else {
+
+	switch manifest.SchemaVersion {
+	case 2:
+		// Defer to the manifest declared type.
+		if manifest.MediaType != "" {
+			return manifest.MediaType
+		}
+		// Is a manifest list.
+		if len(manifest.Manifests) > 0 {
+			return images.MediaTypeDockerSchema2ManifestList
+		}
+		// Is a single image manifest.
+		return images.MediaTypeDockerSchema2Manifest
+
+	case 1:
+		// Defer to the manifest declared type.
+		if manifest.MediaType != "" {
+			return manifest.MediaType
+		}
+		// Is Signed Docker Schema 1 manifest.
+		if len(manifest.Signatures) > 0 {
 			return images.MediaTypeDockerSchema1Manifest
 		}
+		// Is Unsigned Docker Schema 1 manifest.
+		return mediaTypeDockerSchema1ManifestUnsigned
 	}
 
 	return ""

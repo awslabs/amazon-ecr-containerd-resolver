@@ -33,12 +33,17 @@ import (
 
 func TestParseImageManifestMediaType(t *testing.T) {
 	for _, sample := range []testdata.MediaTypeSample{
-		testdata.DockerSchema1Manifest,
-		testdata.DockerSchema1ManifestUnsigned,
+		// Docker Schema 1
+		testdata.WithMediaTypeRemoved(testdata.DockerSchema1Manifest),
+		testdata.WithMediaTypeRemoved(testdata.DockerSchema1ManifestUnsigned),
+		// Docker Schema 2
 		testdata.DockerSchema2Manifest,
+		testdata.WithMediaTypeRemoved(testdata.DockerSchema2Manifest),
 		testdata.DockerSchema2ManifestList,
+		// OCI Image Spec
 		testdata.OCIImageIndex,
 		testdata.OCIImageManifest,
+		// Edge case
 		testdata.EmptySample,
 	} {
 		t.Run(sample.MediaType(), func(t *testing.T) {
