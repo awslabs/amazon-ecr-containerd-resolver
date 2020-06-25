@@ -23,7 +23,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ecr"
-	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/reference"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -33,51 +32,19 @@ import (
 )
 
 func TestParseImageManifestMediaType(t *testing.T) {
-	cases := []struct {
-		name      string
-		manifest  string
-		mediaType string
-	}{
-		{
-			name:      "default",
-			manifest:  "",
-			mediaType: images.MediaTypeDockerSchema2Manifest,
-		},
-		{
-			name:      "schemaVersion:1 unsigned",
-			manifest:  `{"schemaVersion": 1}`,
-			mediaType: "application/vnd.docker.distribution.manifest.v1+json",
-		},
-		{
-			name:      "schemaVersion:1",
-			manifest:  `{"schemaVersion": 1, "signatures":[{}]}`,
-			mediaType: images.MediaTypeDockerSchema1Manifest,
-		},
-		{
-			name:      "schemaVersion:2 docker",
-			manifest:  `{"schemaVersion": 2, "mediaType": "application/vnd.docker.distribution.manifest.v2+json"}`,
-			mediaType: images.MediaTypeDockerSchema2Manifest,
-		},
-		{
-			name:      "schemaVersion:2 docker manifest list",
-			manifest:  `{"schemaVersion": 2, "mediaType": "application/vnd.docker.distribution.manifest.list.v2+json", "manifests": []}`,
-			mediaType: images.MediaTypeDockerSchema2ManifestList,
-		},
-		{
-			name:      "schemaVersion:2 oci",
-			manifest:  `{"schemaVersion": 2, "mediaType": "application/vnd.oci.image.manifest.v1+json"}`,
-			mediaType: ocispec.MediaTypeImageManifest,
-		},
-		{
-			name:      "schemaVersion:2 oci manifest list",
-			manifest:  `{"schemaVersion": 2, "mediaType": "application/vnd.oci.image.index.v1+json", "manifests": []}`,
-			mediaType: ocispec.MediaTypeImageIndex,
-		},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			mediaType := parseImageManifestMediaType(context.TODO(), tc.manifest)
-			assert.Equal(t, tc.mediaType, mediaType)
+	for _, sample := range []testdata.MediaTypeSample{
+		testdata.DockerSchema1Manifest,
+		testdata.DockerSchema1ManifestUnsigned,
+		testdata.DockerSchema2Manifest,
+		testdata.DockerSchema2ManifestList,
+		testdata.OCIImageIndex,
+		testdata.OCIImageManifest,
+		testdata.EmptySample,
+	} {
+		t.Run(sample.MediaType(), func(t *testing.T) {
+			t.Logf("content: %s", sample.Content())
+			actual := parseImageManifestMediaType(context.Background(), sample.Content())
+			assert.Equal(t, sample.MediaType(), actual)
 		})
 	}
 }
