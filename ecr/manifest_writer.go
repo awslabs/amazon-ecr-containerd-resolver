@@ -55,16 +55,32 @@ func (mw *manifestWriter) Digest() digest.Digest {
 }
 
 func (mw *manifestWriter) Commit(ctx context.Context, size int64, expected digest.Digest, opts ...content.Opt) error {
-	log.G(mw.ctx).WithField("size", size).WithField("expected", expected).Debug("ecr.manifest.commit")
 	manifest := mw.buf.String()
-	log.G(mw.ctx).WithField("manifest", manifest).Debug("ecr.manifest.commit")
 	ecrSpec := mw.base.ecrSpec
-	tag, _ := ecrSpec.TagDigest()
+
+	log.G(mw.ctx).
+		WithField("manifest", manifest).
+		WithField("size", size).
+		WithField("expected", expected.String()).
+		Debug("ecr.manifest.commit")
+
 	putImageInput := &ecr.PutImageInput{
 		RegistryId:     aws.String(ecrSpec.Registry()),
 		RepositoryName: aws.String(ecrSpec.Repository),
-		ImageTag:       aws.String(tag),
 		ImageManifest:  aws.String(manifest),
+	}
+
+	// Tag only if this push is the image's root descriptor, as indicated by the
+	// parsed ECRSpec.
+	rootDigest := ecrSpec.Spec().Digest()
+	if mw.desc.Digest == rootDigest {
+		if tag, _ := ecrSpec.TagDigest(); tag != "" {
+			log.G(ctx).
+				WithField("tag", tag).
+				WithField("ref", rootDigest.String()).
+				Debug("ecr.manifest.commit: tag set on push")
+			putImageInput.ImageTag = aws.String(tag)
+		}
 	}
 
 	output, err := mw.base.client.PutImageWithContext(ctx, putImageInput)
@@ -80,14 +96,16 @@ func (mw *manifestWriter) Commit(ctx context.Context, size int64, expected diges
 	} else {
 		log.G(mw.ctx).WithError(err).WithField("ref", mw.ref).Warn("Failed to update status")
 	}
-
 	if output == nil {
 		return errors.Errorf("ecr: failed to put manifest, nil output: %v", ecrSpec)
 	}
+
+	// TODO: make earlier digest assertions.
 	actual := aws.StringValue(output.Image.ImageId.ImageDigest)
 	if actual != expected.String() {
-		return errors.Errorf("got digest %s, expected %s", actual, expected)
+		return errors.Errorf("digest mismatch: ECR returned %s, expected %s", actual, expected)
 	}
+
 	return nil
 }
 

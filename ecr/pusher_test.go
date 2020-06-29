@@ -64,31 +64,41 @@ func TestPushManifestReturnsManifestWriter(t *testing.T) {
 	} {
 		t.Run(mediaType, func(t *testing.T) {
 			callCount := 0
+
+			// Service mock
+
 			fakeClient.BatchGetImageFn = func(_ aws.Context, input *ecr.BatchGetImageInput, _ ...request.Option) (*ecr.BatchGetImageOutput, error) {
 				callCount++
+
 				assert.Equal(t, registry, aws.StringValue(input.RegistryId))
 				assert.Equal(t, repository, aws.StringValue(input.RepositoryName))
-				assert.Equal(t, []*ecr.ImageIdentifier{{ImageTag: aws.String(imageTag)}}, input.ImageIds)
-				// TODO: Determine if we should be matching the requested media type from containerd
-				assert.Equal(t, []*string{
-					aws.String(ocispec.MediaTypeImageManifest),
-					aws.String(images.MediaTypeDockerSchema2Manifest),
-				}, input.AcceptedMediaTypes)
+
+				assert.ElementsMatch(t, []*ecr.ImageIdentifier{
+					&ecr.ImageIdentifier{ImageDigest: aws.String(imageDigest)}},
+					input.ImageIds,
+					"should have requested image by its digest")
+
+				assert.Equal(t, []string{mediaType}, aws.StringValueSlice(input.AcceptedMediaTypes),
+					"should have requested known mediaType")
+
 				return &ecr.BatchGetImageOutput{
 					Failures: []*ecr.ImageFailure{
 						{FailureCode: aws.String(ecr.ImageFailureCodeImageNotFound)},
 					},
 				}, nil
 			}
+
 			desc := ocispec.Descriptor{
 				MediaType: mediaType,
 				Digest:    digest.Digest(imageDigest),
 			}
 
+			// Run mocked push
+
 			start := time.Now()
 			writer, err := pusher.Push(context.Background(), desc)
 			assert.Equal(t, 1, callCount, "BatchGetImage should be called once")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			_, ok := writer.(*manifestWriter)
 			assert.True(t, ok, "writer should be a manifestWriter")
 			end := time.Now()

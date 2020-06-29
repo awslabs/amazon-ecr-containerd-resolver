@@ -75,6 +75,7 @@ func (p ecrPusher) pushManifest(ctx context.Context, desc ocispec.Descriptor) (c
 	}
 
 	ref := p.markStatusStarted(ctx, desc)
+
 	return &manifestWriter{
 		ctx:     ctx,
 		base:    &p.ecrBase,
@@ -85,7 +86,7 @@ func (p ecrPusher) pushManifest(ctx context.Context, desc ocispec.Descriptor) (c
 }
 
 func (p ecrPusher) checkManifestExistence(ctx context.Context, desc ocispec.Descriptor) (bool, error) {
-	image, err := p.getImage(ctx)
+	image, err := p.getImageByDescriptor(ctx, desc)
 	if err != nil {
 		if err == errImageNotFound {
 			return false, nil

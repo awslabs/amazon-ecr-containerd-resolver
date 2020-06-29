@@ -66,16 +66,42 @@ func (b *ecrBase) getImage(ctx context.Context) (*ecr.Image, error) {
 
 // getImageByDescriptor retrieves an image from ECR for a given OCI descriptor.
 func (b *ecrBase) getImageByDescriptor(ctx context.Context, desc ocispec.Descriptor) (*ecr.Image, error) {
+	// If the reference includes both a digest & tag for an image and that
+	// digest matches the descriptor's digest then both are specified when
+	// requesting an image from ECR. Mutation of the image that pushes an image
+	// with a new digest to the tag, will cause the query to fail as the
+	// combination of tag AND digest does not match this modified tag.
+	//
+	// This stronger matching works well for repositories using immutable tags;
+	// in the case of immutable tags, a ref like
+	// ecr.aws/arn:aws:ecr:us-west-2:111111111111:repository/example-name:tag-name@sha256:$digest
+	// would necessarily refer to the same image unless tag-name is deleted and
+	// recreated with an different image.
+	//
+	// Consumers wanting to use a strong reference without assuming immutable
+	// tags should instead provide refs that specify digests, excluding its
+	// corresponding tag.
+	//
+	// See the ECR docs on image tag mutability for details:
+	//
+	// https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-tag-mutability.html
+	//
+	ident := &ecr.ImageIdentifier{ImageDigest: aws.String(desc.Digest.String())}
+	if b.ecrSpec.Spec().Digest() == desc.Digest {
+		if tag, _ := b.ecrSpec.TagDigest(); tag != "" {
+			ident.ImageTag = aws.String(tag)
+		}
+	}
+
 	input := ecr.BatchGetImageInput{
-		ImageIds: []*ecr.ImageIdentifier{
-			&ecr.ImageIdentifier{ImageDigest: aws.String(desc.Digest.String())},
-		},
+		ImageIds: []*ecr.ImageIdentifier{ident},
 		AcceptedMediaTypes: aws.StringSlice([]string{
 			ocispec.MediaTypeImageManifest,
 			images.MediaTypeDockerSchema2Manifest,
 			images.MediaTypeDockerSchema1Manifest,
 		}),
 	}
+
 	// Use mediaType from descriptor when provided.
 	if desc.MediaType != "" {
 		input.AcceptedMediaTypes = []*string{aws.String(desc.MediaType)}

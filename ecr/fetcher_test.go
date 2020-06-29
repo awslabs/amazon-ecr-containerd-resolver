@@ -113,55 +113,95 @@ func TestFetchForeignLayerNotFound(t *testing.T) {
 }
 
 func TestFetchManifest(t *testing.T) {
-	registry := "registry"
-	repository := "repository"
-	imageTag := "tag"
-	imageManifest := "image manifest"
-	fakeClient := &fakeECRClient{}
-	fetcher := &ecrFetcher{
-		ecrBase: ecrBase{
-			client: fakeClient,
-			ecrSpec: ECRSpec{
-				arn: arn.ARN{
-					AccountID: registry,
-				},
-				Repository: repository,
-				Object:     imageTag,
-			},
-		},
-	}
+	const (
+		registry       = "registry"
+		repository     = "repository"
+		imageManifest  = "image manifest"
+		imageDigest    = "sha256:18019fb68413973fcde9ff917d333bbaa228c4aaebba9ad0ca5ffec26e4f3541"
+		imageTag       = "tag"
+		imageTagDigest = "tag@" + imageDigest
+	)
 
-	// test all supported media types
+	// Test all supported media types
 	for _, mediaType := range []string{
 		ocispec.MediaTypeImageManifest,
 		images.MediaTypeDockerSchema2Manifest,
 		images.MediaTypeDockerSchema1Manifest,
 	} {
-		t.Run(mediaType, func(t *testing.T) {
-			callCount := 0
-			fakeClient.BatchGetImageFn = func(_ aws.Context, input *ecr.BatchGetImageInput, _ ...request.Option) (*ecr.BatchGetImageOutput, error) {
-				callCount++
-				assert.Equal(t, registry, aws.StringValue(input.RegistryId))
-				assert.Equal(t, repository, aws.StringValue(input.RepositoryName))
-				assert.Equal(t, []*ecr.ImageIdentifier{{ImageTag: aws.String(imageTag)}}, input.ImageIds)
-				// TODO: Determine if we should be matching the requested media type from containerd
-				assert.Equal(t, []*string{
-					aws.String(ocispec.MediaTypeImageManifest),
-					aws.String(images.MediaTypeDockerSchema2Manifest),
-				}, input.AcceptedMediaTypes)
-				return &ecr.BatchGetImageOutput{Images: []*ecr.Image{{ImageManifest: aws.String(imageManifest)}}}, nil
+		// Test variants of Object (tag, digest, and combination).
+		for _, testObject := range []struct {
+			ImageIdentifier ecr.ImageIdentifier
+			Object          string
+		}{
+			// Tag alone - used on first get image.
+			{Object: imageTag, ImageIdentifier: ecr.ImageIdentifier{ImageTag: aws.String(imageTag)}},
+			// Tag and digest assertive fetch
+			{Object: imageTagDigest, ImageIdentifier: ecr.ImageIdentifier{ImageTag: aws.String(imageTag), ImageDigest: aws.String(imageDigest)}},
+			// Digest fetch
+			{Object: "@" + imageDigest, ImageIdentifier: ecr.ImageIdentifier{ImageDigest: aws.String(imageDigest)}},
+		} {
+			fakeClient := &fakeECRClient{}
+			fetcher := &ecrFetcher{
+				ecrBase: ecrBase{
+					client: fakeClient,
+					ecrSpec: ECRSpec{
+						arn: arn.ARN{
+							AccountID: registry,
+						},
+						Repository: repository,
+						Object:     testObject.Object,
+					},
+				},
 			}
 			desc := ocispec.Descriptor{
 				MediaType: mediaType,
 			}
-			reader, err := fetcher.Fetch(context.Background(), desc)
-			assert.NoError(t, err, "fetch")
-			defer reader.Close()
-			assert.Equal(t, 1, callCount, "BatchGetImage should be called once")
-			manifest, err := ioutil.ReadAll(reader)
-			assert.NoError(t, err, "reading manifest")
-			assert.Equal(t, imageManifest, string(manifest))
-		})
+			if testObject.ImageIdentifier.ImageDigest != nil {
+				desc.Digest = digest.Digest(aws.StringValue(testObject.ImageIdentifier.ImageDigest))
+			}
+
+			supportedImageMediaTypes := []string{
+				ocispec.MediaTypeImageManifest,
+				images.MediaTypeDockerSchema2Manifest,
+				images.MediaTypeDockerSchema1Manifest,
+			}
+
+			t.Run(mediaType+"_"+testObject.Object, func(t *testing.T) {
+				callCount := 0
+				fakeClient.BatchGetImageFn = func(_ aws.Context, input *ecr.BatchGetImageInput, _ ...request.Option) (*ecr.BatchGetImageOutput, error) {
+					callCount++
+					assert.Equal(t, registry, aws.StringValue(input.RegistryId))
+					assert.Equal(t, repository, aws.StringValue(input.RepositoryName))
+
+					assert.ElementsMatch(t, []*ecr.ImageIdentifier{&testObject.ImageIdentifier}, input.ImageIds)
+
+					// Fetching populated descriptors uses a narrower requested
+					// content type.
+					if testObject.ImageIdentifier.ImageDigest != nil {
+						assert.Equal(t,
+							[]string{desc.MediaType},
+							aws.StringValueSlice(input.AcceptedMediaTypes),
+							"mediaType should match the descriptor")
+					} else {
+						assert.Equal(t, supportedImageMediaTypes,
+							aws.StringValueSlice(input.AcceptedMediaTypes),
+							"mediaType should allow any supported type")
+					}
+
+					return &ecr.BatchGetImageOutput{
+						Images: []*ecr.Image{{ImageManifest: aws.String(imageManifest)}},
+					}, nil
+				}
+
+				reader, err := fetcher.Fetch(context.Background(), desc)
+				require.NoError(t, err, "fetch")
+				defer reader.Close()
+				assert.Equal(t, 1, callCount, "BatchGetImage should be called once")
+				manifest, err := ioutil.ReadAll(reader)
+				require.NoError(t, err, "reading manifest")
+				assert.Equal(t, imageManifest, string(manifest))
+			})
+		}
 	}
 }
 

@@ -48,6 +48,7 @@ var _ remotes.Fetcher = (*ecrFetcher)(nil)
 func (f *ecrFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.ReadCloser, error) {
 	ctx = log.WithLogger(ctx, log.G(ctx).WithField("desc", desc))
 	log.G(ctx).Debug("ecr.fetch")
+
 	// need to do different things based on the media type
 	switch desc.MediaType {
 	case
@@ -75,13 +76,27 @@ func (f *ecrFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.Rea
 }
 
 func (f *ecrFetcher) fetchManifest(ctx context.Context, desc ocispec.Descriptor) (io.ReadCloser, error) {
-	image, err := f.getImage(ctx)
+	var (
+		image *ecr.Image
+		err   error
+	)
+	// A digest is required to fetch by digest alone. When a digest is not
+	// provided the fetch is based on the parsed ECR resource - specifying both
+	// a digest and tag in the request if possible.
+	if desc.Digest == "" {
+		log.G(ctx).Debug("ecr.fetcher.manifest: fetch image by tag")
+		image, err = f.getImage(ctx)
+	} else {
+		log.G(ctx).Debug("ecr.fetcher.manifest: fetch image by digest")
+		image, err = f.getImageByDescriptor(ctx, desc)
+	}
 	if err != nil {
 		return nil, err
 	}
 	if image == nil {
 		return nil, errors.New("fetchManifest: nil image")
 	}
+
 	return ioutil.NopCloser(bytes.NewReader([]byte(aws.StringValue(image.ImageManifest)))), nil
 }
 
