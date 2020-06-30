@@ -69,8 +69,14 @@ func TestManifestWriterCommit(t *testing.T) {
 
 			assert.Equal(t, registry, aws.StringValue(input.RegistryId))
 			assert.Equal(t, repository, aws.StringValue(input.RepositoryName))
-			assert.Equal(t, imageTag, aws.StringValue(input.ImageTag), "should use ref's tag")
-			assert.Equal(t, manifestContent, aws.StringValue(input.ImageManifest))
+			assert.Equal(t, imageTag, aws.StringValue(input.ImageTag),
+				"should use image ref's tag")
+			assert.Equal(t, manifestContent, aws.StringValue(input.ImageManifest),
+				"should provide manifest's body")
+			assert.Equal(t, imageDesc.MediaType, aws.StringValue(input.ImageManifestMediaType),
+				"should include manifest's mediaType in API input") // regardless of it being in the manifest body
+			assert.Equal(t, imageDesc.Digest.String(), aws.StringValue(input.ImageDigest),
+				"should include manifest's digest in API input")
 
 			return &ecr.PutImageOutput{
 				Image: &ecr.Image{
@@ -145,7 +151,12 @@ func TestManifestWriterNoTagCommit(t *testing.T) {
 			assert.Equal(t, registry, aws.StringValue(input.RegistryId))
 			assert.Equal(t, repository, aws.StringValue(input.RepositoryName))
 			assert.NotEqual(t, aws.StringValue(input.ImageTag), imageTag, "should not include tag when pushing non-root descriptor")
-			assert.Equal(t, memberManifestContent, aws.StringValue(input.ImageManifest), "should have sent the correct manifest")
+			assert.Equal(t, memberManifestContent, aws.StringValue(input.ImageManifest),
+				"should provide manifest's body")
+			assert.Equal(t, memberDesc.MediaType, aws.StringValue(input.ImageManifestMediaType),
+				"should include manifest's mediaType in API input") // regardless of it being in the manifest body
+			assert.Equal(t, memberDesc.Digest.String(), aws.StringValue(input.ImageDigest),
+				"should include manifest's digest in API input")
 
 			return &ecr.PutImageOutput{
 				Image: &ecr.Image{
@@ -168,6 +179,7 @@ func TestManifestWriterNoTagCommit(t *testing.T) {
 				Object:     imageObject,
 			},
 		},
+		desc:    memberDesc,
 		tracker: docker.NewInMemoryTracker(),
 		ref:     refKey,
 		ctx:     context.Background(),

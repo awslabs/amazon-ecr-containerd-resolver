@@ -65,9 +65,11 @@ func (mw *manifestWriter) Commit(ctx context.Context, size int64, expected diges
 		Debug("ecr.manifest.commit")
 
 	putImageInput := &ecr.PutImageInput{
-		RegistryId:     aws.String(ecrSpec.Registry()),
-		RepositoryName: aws.String(ecrSpec.Repository),
-		ImageManifest:  aws.String(manifest),
+		RegistryId:             aws.String(ecrSpec.Registry()),
+		RepositoryName:         aws.String(ecrSpec.Repository),
+		ImageManifest:          aws.String(manifest),
+		ImageManifestMediaType: aws.String(mw.desc.MediaType),
+		ImageDigest:            aws.String(expected.String()),
 	}
 
 	// Tag only if this push is the image's root descriptor, as indicated by the
@@ -100,7 +102,6 @@ func (mw *manifestWriter) Commit(ctx context.Context, size int64, expected diges
 		return errors.Errorf("ecr: failed to put manifest, nil output: %v", ecrSpec)
 	}
 
-	// TODO: make earlier digest assertions.
 	actual := aws.StringValue(output.Image.ImageId.ImageDigest)
 	if actual != expected.String() {
 		return errors.Errorf("digest mismatch: ECR returned %s, expected %s", actual, expected)
