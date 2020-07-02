@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright 2017-2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"). You
  * may not use this file except in compliance with the License. A copy of
@@ -48,12 +48,15 @@ var _ remotes.Fetcher = (*ecrFetcher)(nil)
 func (f *ecrFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.ReadCloser, error) {
 	ctx = log.WithLogger(ctx, log.G(ctx).WithField("desc", desc))
 	log.G(ctx).Debug("ecr.fetch")
+
 	// need to do different things based on the media type
 	switch desc.MediaType {
 	case
-		ocispec.MediaTypeImageManifest,
+		images.MediaTypeDockerSchema1Manifest,
 		images.MediaTypeDockerSchema2Manifest,
-		images.MediaTypeDockerSchema1Manifest:
+		images.MediaTypeDockerSchema2ManifestList,
+		ocispec.MediaTypeImageIndex,
+		ocispec.MediaTypeImageManifest:
 		return f.fetchManifest(ctx, desc)
 	case
 		images.MediaTypeDockerSchema2Layer,
@@ -63,7 +66,8 @@ func (f *ecrFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.Rea
 		ocispec.MediaTypeImageLayer,
 		ocispec.MediaTypeImageConfig:
 		return f.fetchLayer(ctx, desc)
-	case images.MediaTypeDockerSchema2LayerForeign,
+	case
+		images.MediaTypeDockerSchema2LayerForeign,
 		images.MediaTypeDockerSchema2LayerForeignGzip:
 		return f.fetchForeignLayer(ctx, desc)
 	default:
@@ -75,13 +79,27 @@ func (f *ecrFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.Rea
 }
 
 func (f *ecrFetcher) fetchManifest(ctx context.Context, desc ocispec.Descriptor) (io.ReadCloser, error) {
-	image, err := f.getManifest(ctx)
+	var (
+		image *ecr.Image
+		err   error
+	)
+	// A digest is required to fetch by digest alone. When a digest is not
+	// provided the fetch is based on the parsed ECR resource - specifying both
+	// a digest and tag in the request if possible.
+	if desc.Digest == "" {
+		log.G(ctx).Debug("ecr.fetcher.manifest: fetch image by tag")
+		image, err = f.getImage(ctx)
+	} else {
+		log.G(ctx).Debug("ecr.fetcher.manifest: fetch image by digest")
+		image, err = f.getImageByDescriptor(ctx, desc)
+	}
 	if err != nil {
 		return nil, err
 	}
 	if image == nil {
 		return nil, errors.New("fetchManifest: nil image")
 	}
+
 	return ioutil.NopCloser(bytes.NewReader([]byte(aws.StringValue(image.ImageManifest)))), nil
 }
 
@@ -150,7 +168,8 @@ func (f *ecrFetcher) fetchLayerURL(ctx context.Context, desc ocispec.Descriptor,
 }
 
 func (f *ecrFetcher) doRequest(ctx context.Context, req *http.Request) (*http.Response, error) {
-	client := http.DefaultClient // TODO
+	// TODO: use configurable http.Client
+	client := http.DefaultClient
 	resp, err := ctxhttp.Do(ctx, client, req)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to do request")

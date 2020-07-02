@@ -51,9 +51,11 @@ func (p ecrPusher) Push(ctx context.Context, desc ocispec.Descriptor) (content.W
 
 	switch desc.MediaType {
 	case
-		ocispec.MediaTypeImageManifest,
+		images.MediaTypeDockerSchema1Manifest,
 		images.MediaTypeDockerSchema2Manifest,
-		images.MediaTypeDockerSchema1Manifest:
+		images.MediaTypeDockerSchema2ManifestList,
+		ocispec.MediaTypeImageIndex,
+		ocispec.MediaTypeImageManifest:
 		return p.pushManifest(ctx, desc)
 	default:
 		return p.pushBlob(ctx, desc)
@@ -75,6 +77,7 @@ func (p ecrPusher) pushManifest(ctx context.Context, desc ocispec.Descriptor) (c
 	}
 
 	ref := p.markStatusStarted(ctx, desc)
+
 	return &manifestWriter{
 		ctx:     ctx,
 		base:    &p.ecrBase,
@@ -85,7 +88,7 @@ func (p ecrPusher) pushManifest(ctx context.Context, desc ocispec.Descriptor) (c
 }
 
 func (p ecrPusher) checkManifestExistence(ctx context.Context, desc ocispec.Descriptor) (bool, error) {
-	image, err := p.getManifest(ctx)
+	image, err := p.getImageByDescriptor(ctx, desc)
 	if err != nil {
 		if err == errImageNotFound {
 			return false, nil

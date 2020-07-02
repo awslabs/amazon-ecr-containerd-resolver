@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright 2017-2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"). You
  * may not use this file except in compliance with the License. A copy of
@@ -48,9 +48,13 @@ var (
 //
 // Valid references are of the form "ecr.aws/arn:aws:ecr:<region>:<account>:repository/<name>:<tag>".
 type ECRSpec struct {
+	// Repository name for this reference.
 	Repository string
-	Object     string
-	arn        arn.ARN
+	// Object is the image reference's object descriptor. This may be a label or
+	// a digest specifier.
+	Object string
+	// arn holds the canonical AWS resource name for this reference.
+	arn arn.ARN
 }
 
 // ParseRef parses an ECR reference into its constituent parts
@@ -145,8 +149,9 @@ func (spec ECRSpec) Registry() string {
 	return spec.arn.AccountID
 }
 
-// parseARN parses an ECR ARN into its constituent parts
-// An example ARN is arn:aws:ecr:us-west-2:123456789012:repository/foo/bar
+// parseARN parses an ECR ARN into its constituent parts.
+//
+// An example ARN is: arn:aws:ecr:us-west-2:123456789012:repository/foo/bar
 func parseARN(a string) (ECRSpec, error) {
 	parsed, err := arn.Parse(a)
 	if err != nil {
@@ -170,19 +175,11 @@ func parseARN(a string) (ECRSpec, error) {
 		Repository: unprefixedRepo,
 		Object:     spec.Object,
 	}, nil
-
 }
 
 // Canonical returns the canonical representation for the reference
 func (spec ECRSpec) Canonical() string {
-	object := ""
-	if len(spec.Object) != 0 {
-		if spec.Object[0] != '@' {
-			object = ":"
-		}
-		object = object + spec.Object
-	}
-	return refPrefix + spec.ARN() + object
+	return spec.Spec().String()
 }
 
 // ARN returns the canonical representation of the ECR ARN
@@ -192,7 +189,10 @@ func (spec ECRSpec) ARN() string {
 
 // Spec returns a reference.Spec
 func (spec ECRSpec) Spec() reference.Spec {
-	return reference.Spec{Locator: "", Object: spec.Object}
+	return reference.Spec{
+		Locator: refPrefix + spec.ARN(),
+		Object:  spec.Object,
+	}
 }
 
 // ImageID returns an ecr.ImageIdentifier suitable for using in calls to ECR
@@ -203,7 +203,7 @@ func (spec ECRSpec) ImageID() *ecr.ImageIdentifier {
 		imageID.ImageTag = aws.String(tag)
 	}
 	if digest != "" {
-		imageID.ImageDigest = aws.String(string(digest))
+		imageID.ImageDigest = aws.String(digest.String())
 	}
 	return &imageID
 }
@@ -211,6 +211,5 @@ func (spec ECRSpec) ImageID() *ecr.ImageIdentifier {
 // TagDigest returns the tag and/or digest specified by the reference
 func (spec ECRSpec) TagDigest() (string, digest.Digest) {
 	tag, digest := reference.SplitObject(spec.Object)
-	tag = strings.TrimSuffix(tag, "@")
-	return tag, digest
+	return strings.TrimSuffix(tag, "@"), digest
 }

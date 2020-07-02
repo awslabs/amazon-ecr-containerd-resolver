@@ -23,28 +23,148 @@ import (
 	"github.com/aws/aws-sdk-go/aws/arn"
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ecr"
+	"github.com/awslabs/amazon-ecr-containerd-resolver/ecr/internal/testdata"
+	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
-	"github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestManifestWriterCommit(t *testing.T) {
-	manifestContent := "manifest content"
-	registry := "registry"
-	repository := "repository"
-	imageTag := "tag"
-	imageDigest := "digest"
-	refKey := "refKey"
+	const (
+		manifestContent = "manifest content"
+		registry        = "registry"
+		repository      = "repository"
+		imageTag        = "tag"
+	)
+
+	// Setup an image details for push.
+	imageDigest := testdata.InsignificantDigest
+	imageDesc := ocispec.Descriptor{
+		Digest:    imageDigest,
+		MediaType: ocispec.MediaTypeImageManifest,
+	}
+	// root image Object has its digest appended.
+	imageObject := imageTag + "@" + imageDigest.String()
+	imageECRSpec := ECRSpec{
+		arn: arn.ARN{
+			AccountID: registry,
+		},
+		Repository: repository,
+		Object:     imageObject,
+	}
+	// root image ref is the ECRSpec's formatted ref, with the digest of the
+	// root descriptor. For a single manifest image, that's the manifest's
+	// digest.
+	refKey := imageECRSpec.Canonical()
+
+	t.Log("image Object: ", imageObject)
+	t.Log("image digest: ", imageDigest)
+
+	callCount := 0
+	client := &fakeECRClient{
+		PutImageFn: func(_ aws.Context, input *ecr.PutImageInput, _ ...request.Option) (*ecr.PutImageOutput, error) {
+			callCount++
+
+			assert.Equal(t, registry, aws.StringValue(input.RegistryId))
+			assert.Equal(t, repository, aws.StringValue(input.RepositoryName))
+			assert.Equal(t, imageTag, aws.StringValue(input.ImageTag),
+				"should use image ref's tag")
+			assert.Equal(t, manifestContent, aws.StringValue(input.ImageManifest),
+				"should provide manifest's body")
+			assert.Equal(t, imageDesc.MediaType, aws.StringValue(input.ImageManifestMediaType),
+				"should include manifest's mediaType in API input") // regardless of it being in the manifest body
+			assert.Equal(t, imageDesc.Digest.String(), aws.StringValue(input.ImageDigest),
+				"should include manifest's digest in API input")
+
+			return &ecr.PutImageOutput{
+				Image: &ecr.Image{
+					ImageId: &ecr.ImageIdentifier{
+						ImageTag:    input.ImageTag,
+						ImageDigest: aws.String(imageDigest.String()),
+					},
+				},
+			}, nil
+		},
+	}
+	mw := &manifestWriter{
+		desc: imageDesc,
+		base: &ecrBase{
+			client:  client,
+			ecrSpec: imageECRSpec,
+		},
+		tracker: docker.NewInMemoryTracker(),
+		ref:     refKey,
+		ctx:     context.Background(),
+	}
+
+	count, err := mw.Write([]byte(manifestContent[:3]))
+	require.NoError(t, err, "failed to write to manifest writer")
+	assert.Equal(t, 3, count, "wrong number of bytes")
+
+	count, err = mw.Write([]byte(manifestContent[3:]))
+	require.NoError(t, err, "failed to write to manifest writer")
+	assert.Equal(t, len(manifestContent)-3, count, "wrong number of bytes")
+
+	assert.Equal(t, 0, callCount, "PutImage should not be called until committed")
+
+	err = mw.Commit(context.Background(), int64(len(manifestContent)), imageDigest)
+	require.NoError(t, err, "failed to commit")
+	assert.Equal(t, 1, callCount, "PutImage should be called once")
+}
+
+func TestManifestWriterNoTagCommit(t *testing.T) {
+	const (
+		registry   = "registry"
+		repository = "repository"
+		imageTag   = "tag"
+
+		memberManifestContent = "manifest content"
+	)
+
+	// The root image, this is the target digest which is treated as an Image
+	// Index in this test case.
+	imageDigest := testdata.ImageDigest
+	// Image pushes include the root image digest in the object:
+	//
+	// ie: "latest@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+	imageObject := imageTag + "@" + imageDigest.String()
+
+	// A member manifest that was listed and being "pushed" in the test case.
+	memberDesc := ocispec.Descriptor{
+		Digest:    "member-digest",
+		MediaType: ocispec.MediaTypeImageManifest,
+	}
+	// ref, for non-root descriptors, uses the internal ref naming (eg:
+	// index-sha256:fffff...).
+	refKey := remotes.MakeRefKey(context.Background(), memberDesc)
+
+	t.Log("image Object: ", imageObject)
+	t.Log("image digest: " + imageDigest.String())
+	t.Log("member digest: " + memberDesc.Digest.String())
+
 	callCount := 0
 	client := &fakeECRClient{
 		PutImageFn: func(_ aws.Context, input *ecr.PutImageInput, _ ...request.Option) (*ecr.PutImageOutput, error) {
 			callCount++
 			assert.Equal(t, registry, aws.StringValue(input.RegistryId))
 			assert.Equal(t, repository, aws.StringValue(input.RepositoryName))
-			assert.Equal(t, imageTag, aws.StringValue(input.ImageTag))
-			assert.Equal(t, manifestContent, aws.StringValue(input.ImageManifest))
+			assert.NotEqual(t, aws.StringValue(input.ImageTag), imageTag, "should not include tag when pushing non-root descriptor")
+			assert.Equal(t, memberManifestContent, aws.StringValue(input.ImageManifest),
+				"should provide manifest's body")
+			assert.Equal(t, memberDesc.MediaType, aws.StringValue(input.ImageManifestMediaType),
+				"should include manifest's mediaType in API input") // regardless of it being in the manifest body
+			assert.Equal(t, memberDesc.Digest.String(), aws.StringValue(input.ImageDigest),
+				"should include manifest's digest in API input")
+
 			return &ecr.PutImageOutput{
-				Image: &ecr.Image{ImageId: &ecr.ImageIdentifier{ImageDigest: aws.String(imageDigest)}},
+				Image: &ecr.Image{
+					ImageId: &ecr.ImageIdentifier{
+						// Image will have the matching digest.
+						ImageDigest: aws.String(memberDesc.Digest.String()),
+					},
+				},
 			}, nil
 		},
 	}
@@ -56,25 +176,26 @@ func TestManifestWriterCommit(t *testing.T) {
 					AccountID: registry,
 				},
 				Repository: repository,
-				Object:     imageTag,
+				Object:     imageObject,
 			},
 		},
+		desc:    memberDesc,
 		tracker: docker.NewInMemoryTracker(),
 		ref:     refKey,
 		ctx:     context.Background(),
 	}
 
-	count, err := mw.Write([]byte(manifestContent[:3]))
-	assert.NoError(t, err, "failed to write to manifest writer")
+	count, err := mw.Write([]byte(memberManifestContent[:3]))
+	require.NoError(t, err, "failed to write to manifest writer")
 	assert.Equal(t, 3, count, "wrong number of bytes")
 
-	count, err = mw.Write([]byte(manifestContent[3:]))
-	assert.NoError(t, err, "failed to write to manifest writer")
-	assert.Equal(t, len(manifestContent)-3, count, "wrong number of bytes")
+	count, err = mw.Write([]byte(memberManifestContent[3:]))
+	require.NoError(t, err, "failed to write to manifest writer")
+	assert.Equal(t, len(memberManifestContent)-3, count, "wrong number of bytes")
 
 	assert.Equal(t, 0, callCount, "PutImage should not be called until committed")
 
-	err = mw.Commit(context.Background(), int64(len(manifestContent)), digest.Digest(imageDigest))
-	assert.NoError(t, err, "failed to commit")
+	err = mw.Commit(context.Background(), int64(len(memberManifestContent)), memberDesc.Digest)
+	require.NoError(t, err, "failed to commit")
 	assert.Equal(t, 1, callCount, "PutImage should be called once")
 }

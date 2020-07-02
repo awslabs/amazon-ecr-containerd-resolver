@@ -23,6 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/arn"
 	"github.com/aws/aws-sdk-go/service/ecr"
+	"github.com/awslabs/amazon-ecr-containerd-resolver/ecr/internal/testdata"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -76,7 +77,7 @@ func TestRefRepresentations(t *testing.T) {
 			},
 		},
 		{
-			ref: "ecr.aws/arn:aws:ecr:us-west-2:123456789012:repository/foo/bar:latest@sha256:digest",
+			ref: "ecr.aws/arn:aws:ecr:us-west-2:123456789012:repository/foo/bar:latest@" + testdata.ImageDigest.String(),
 			arn: "arn:aws:ecr:us-west-2:123456789012:repository/foo/bar",
 			spec: ECRSpec{
 				arn: arn.ARN{
@@ -87,11 +88,11 @@ func TestRefRepresentations(t *testing.T) {
 					Resource:  "repository/foo/bar",
 				},
 				Repository: "foo/bar",
-				Object:     "latest@sha256:digest",
+				Object:     "latest@" + testdata.ImageDigest.String(),
 			},
 		},
 		{
-			ref: "ecr.aws/arn:aws:ecr:us-west-2:123456789012:repository/foo/bar@sha256:digest",
+			ref: "ecr.aws/arn:aws:ecr:us-west-2:123456789012:repository/foo/bar@" + testdata.ImageDigest.String(),
 			arn: "arn:aws:ecr:us-west-2:123456789012:repository/foo/bar",
 			spec: ECRSpec{
 				arn: arn.ARN{
@@ -102,7 +103,7 @@ func TestRefRepresentations(t *testing.T) {
 					Resource:  "repository/foo/bar",
 				},
 				Repository: "foo/bar",
-				Object:     "@sha256:digest",
+				Object:     "@" + testdata.ImageDigest.String(),
 			},
 		},
 	}
@@ -155,21 +156,21 @@ func TestImageID(t *testing.T) {
 			name: "digest",
 			spec: ECRSpec{
 				Repository: "foo/bar",
-				Object:     "@sha256:digest",
+				Object:     "@" + testdata.ImageDigest.String(),
 			},
 			imageID: &ecr.ImageIdentifier{
-				ImageDigest: aws.String("sha256:digest"),
+				ImageDigest: aws.String(testdata.ImageDigest.String()),
 			},
 		},
 		{
 			name: "tag+digest",
 			spec: ECRSpec{
 				Repository: "foo/bar",
-				Object:     "latest@sha256:digest",
+				Object:     "latest@" + testdata.ImageDigest.String(),
 			},
 			imageID: &ecr.ImageIdentifier{
 				ImageTag:    aws.String("latest"),
-				ImageDigest: aws.String("sha256:digest"),
+				ImageDigest: aws.String(testdata.ImageDigest.String()),
 			},
 		},
 	}

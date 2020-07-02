@@ -24,17 +24,19 @@ import (
 	"github.com/aws/aws-sdk-go/aws/arn"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ecr"
+	"github.com/awslabs/amazon-ecr-containerd-resolver/ecr/internal/testdata"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestLayerWriter(t *testing.T) {
 	registry := "registry"
 	repository := "repository"
 	layerData := "layer"
-	layerDigest := "digest"
+	layerDigest := testdata.InsignificantDigest.String()
 	uploadID := "upload"
 	initiateLayerUploadCount, uploadLayerPartCount, completeLayerUploadCount := 0, 0, 0
 	client := &fakeECRClient{
@@ -94,11 +96,14 @@ func TestLayerWriter(t *testing.T) {
 	assert.Equal(t, 0, uploadLayerPartCount)
 	assert.Equal(t, 0, completeLayerUploadCount)
 
+	// Writer is required to proceed any farther.
+	require.NotNil(t, lw)
+
 	n, err := lw.Write([]byte(layerData))
 	assert.NoError(t, err)
 	assert.Equal(t, len(layerData), n)
 
-	err = lw.Commit(context.TODO(), int64(len(layerData)), desc.Digest)
+	err = lw.Commit(context.Background(), int64(len(layerData)), desc.Digest)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, completeLayerUploadCount)
 }

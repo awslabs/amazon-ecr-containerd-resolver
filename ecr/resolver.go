@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright 2017-2020 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"). You
  * may not use this file except in compliance with the License. A copy of
@@ -18,14 +18,13 @@ package ecr
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"strings"
 	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ecr"
 	ecrsdk "github.com/aws/aws-sdk-go/service/ecr"
+	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/reference"
@@ -33,6 +32,7 @@ import (
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
 )
 
 var unimplemented = errors.New("unimplemented")
@@ -137,13 +137,10 @@ func (r *ecrResolver) Resolve(ctx context.Context, ref string) (string, ocispec.
 	}
 
 	batchGetImageInput := &ecr.BatchGetImageInput{
-		RegistryId:     aws.String(ecrSpec.Registry()),
-		RepositoryName: aws.String(ecrSpec.Repository),
-		ImageIds:       []*ecr.ImageIdentifier{ecrSpec.ImageID()},
-		AcceptedMediaTypes: []*string{
-			aws.String(ocispec.MediaTypeImageManifest),
-			aws.String(images.MediaTypeDockerSchema2Manifest),
-		},
+		RegistryId:         aws.String(ecrSpec.Registry()),
+		RepositoryName:     aws.String(ecrSpec.Repository),
+		ImageIds:           []*ecr.ImageIdentifier{ecrSpec.ImageID()},
+		AcceptedMediaTypes: aws.StringSlice(supportedImageMediaTypes),
 	}
 
 	client := r.getClient(ecrSpec.Region())
@@ -161,20 +158,47 @@ func (r *ecrResolver) Resolve(ctx context.Context, ref string) (string, ocispec.
 		WithField("batchGetImageOutput", batchGetImageOutput).
 		Debug("ecr.resolver.resolve")
 
-	var ecrImage *ecr.Image
 	if len(batchGetImageOutput.Images) == 0 {
 		return "", ocispec.Descriptor{}, reference.ErrInvalid
 	}
-	ecrImage = batchGetImageOutput.Images[0]
-	mediaType := parseImageManifestMediaType(ctx, aws.StringValue(ecrImage.ImageManifest))
+	ecrImage := batchGetImageOutput.Images[0]
+
+	mediaType := aws.StringValue(ecrImage.ImageManifestMediaType)
+	if mediaType == "" {
+		manifestBody := aws.StringValue(ecrImage.ImageManifest)
+		log.G(ctx).
+			WithField("ref", ref).
+			WithField("manifest", manifestBody).
+			Trace("ecr.resolver.resolve: parsing mediaType from manifest")
+		mediaType = parseImageManifestMediaType(ctx, manifestBody)
+	}
 	log.G(ctx).
 		WithField("ref", ref).
-		WithField("media type", mediaType).
+		WithField("mediaType", mediaType).
 		Debug("ecr.resolver.resolve")
+	// check resolved image's mediaType, it should be one of the specified in
+	// the request.
+	for i, accepted := range aws.StringValueSlice(batchGetImageInput.AcceptedMediaTypes) {
+		if mediaType == accepted {
+			break
+		}
+		if i+1 == len(batchGetImageInput.AcceptedMediaTypes) {
+			log.G(ctx).
+				WithField("ref", ref).
+				WithField("mediaType", mediaType).
+				Debug("ecr.resolver.resolve: unrequested mediaType, deferring to caller")
+		}
+	}
+
 	desc := ocispec.Descriptor{
 		Digest:    digest.Digest(aws.StringValue(ecrImage.ImageId.ImageDigest)),
 		MediaType: mediaType,
 		Size:      int64(len(aws.StringValue(ecrImage.ImageManifest))),
+	}
+	// assert matching digest if the provided ref includes one.
+	if expectedDigest := ecrSpec.Spec().Digest().String(); expectedDigest != "" &&
+		desc.Digest.String() != expectedDigest {
+		return "", ocispec.Descriptor{}, errors.Wrap(errdefs.ErrFailedPrecondition, "resolved image digest mismatch")
 	}
 
 	return ecrSpec.Canonical(), desc, nil
@@ -189,29 +213,60 @@ func (r *ecrResolver) getClient(region string) ecrAPI {
 	return r.clients[region]
 }
 
-type manifestContent struct {
-	SchemaVersion int64         `json:"schemaVersion"`
-	Signatures    []interface{} `json:"signatures,omitempty"`
-	MediaType     string        `json:"mediaType,omitempty"`
+// manifestProbe provides a structure to parse and then probe a given manifest
+// to determine its mediaType.
+type manifestProbe struct {
+	// SchemaVersion is version identifier for the manifest schema used.
+	SchemaVersion int64 `json:"schemaVersion"`
+	// Explicit MediaType assignment for the manifest.
+	MediaType string `json:"mediaType,omitempty"`
+	// Docker Schema 1 signatures.
+	Signatures []json.RawMessage `json:"signatures,omitempty"`
+	// OCI or Docker Manifest Lists, the list of descriptors has mediaTypes
+	// embedded.
+	Manifests []json.RawMessage `json:"manifests,omitempty"`
 }
 
+// TODO: add error to signal unparsable and unhandled manifest types.
 func parseImageManifestMediaType(ctx context.Context, body string) string {
-	var manifest manifestContent
+	// The unsigned variant of Docker v2 Schema 1 manifest mediaType.
+	const mediaTypeDockerSchema1ManifestUnsigned = "application/vnd.docker.distribution.manifest.v1+json"
+
+	// The type used as a fallback when parsing is not possible.
+	const unparsedMediaType = images.MediaTypeDockerSchema2Manifest
+
+	var manifest manifestProbe
 	err := json.Unmarshal([]byte(body), &manifest)
 	if err != nil {
-		log.G(ctx).WithError(err).Warn("ecr.resolver.resolve: could not parse manifest")
-		// default to schema 2 for now
-		return images.MediaTypeDockerSchema2Manifest
+		log.G(ctx).WithField("manifest", body).
+			WithError(err).Warn("ecr.resolver.resolve: could not parse manifest")
+		return unparsedMediaType
 	}
-	if manifest.SchemaVersion == 2 {
-		return manifest.MediaType
-	} else if manifest.SchemaVersion == 1 {
-		if len(manifest.Signatures) == 0 {
-			// unsigned
-			return "application/vnd.docker.distribution.manifest.v1+json"
-		} else {
+
+	switch manifest.SchemaVersion {
+	case 2:
+		// Defer to the manifest declared type.
+		if manifest.MediaType != "" {
+			return manifest.MediaType
+		}
+		// Is a manifest list.
+		if len(manifest.Manifests) > 0 {
+			return images.MediaTypeDockerSchema2ManifestList
+		}
+		// Is a single image manifest.
+		return images.MediaTypeDockerSchema2Manifest
+
+	case 1:
+		// Defer to the manifest declared type.
+		if manifest.MediaType != "" {
+			return manifest.MediaType
+		}
+		// Is Signed Docker Schema 1 manifest.
+		if len(manifest.Signatures) > 0 {
 			return images.MediaTypeDockerSchema1Manifest
 		}
+		// Is Unsigned Docker Schema 1 manifest.
+		return mediaTypeDockerSchema1ManifestUnsigned
 	}
 
 	return ""
@@ -238,11 +293,20 @@ func (r *ecrResolver) Pusher(ctx context.Context, ref string) (remotes.Pusher, e
 	if err != nil {
 		return nil, err
 	}
-	// TODO block pushing by digest since that's not allowed
-	// see containerd/remotes/docker/resolver.go:218
 
-	if ecrSpec.Object != "" && strings.Contains(ecrSpec.Object, "@") {
+	// ECR does not allow push by digest; references will include a digest when
+	// the ref is being pushed to a tag to denote *which* digest is the root
+	// descriptor in this push.
+	tag, digest := ecrSpec.TagDigest()
+	if tag == "" && digest != "" {
 		return nil, errors.New("pusher: cannot use digest reference for push location")
+	}
+
+	// The root descriptor's digest *must* be provided in order to properly tag
+	// manifests. A ref string will provide this as of containerd v1.3.0 -
+	// earlier versions do not provide it.
+	if digest == "" {
+		return nil, errors.New("pusher: root descriptor missing from push reference")
 	}
 
 	return &ecrPusher{

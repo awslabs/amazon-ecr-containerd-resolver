@@ -22,50 +22,35 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/request"
+	"github.com/aws/aws-sdk-go/awstesting/unit"
 	"github.com/aws/aws-sdk-go/service/ecr"
-	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/reference"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/awslabs/amazon-ecr-containerd-resolver/ecr/internal/testdata"
 )
 
 func TestParseImageManifestMediaType(t *testing.T) {
-	cases := []struct {
-		name      string
-		manifest  string
-		mediaType string
-	}{
-		{
-			name:      "default",
-			manifest:  "",
-			mediaType: images.MediaTypeDockerSchema2Manifest,
-		},
-		{
-			name:      "schemaVersion:1 unsigned",
-			manifest:  `{"schemaVersion": 1}`,
-			mediaType: "application/vnd.docker.distribution.manifest.v1+json",
-		},
-		{
-			name:      "schemaVersion:1",
-			manifest:  `{"schemaVersion": 1, "signatures":[{}]}`,
-			mediaType: images.MediaTypeDockerSchema1Manifest,
-		},
-		{
-			name:      "schemaVersion:2 docker",
-			manifest:  `{"schemaVersion": 2, "mediaType": "application/vnd.docker.distribution.manifest.v2+json"}`,
-			mediaType: images.MediaTypeDockerSchema2Manifest,
-		},
-		{
-			name:      "schemaVersion:2 oci",
-			manifest:  `{"schemaVersion": 2, "mediaType": "application/vnd.oci.image.manifest.v1+json"}`,
-			mediaType: ocispec.MediaTypeImageManifest,
-		},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			mediaType := parseImageManifestMediaType(context.TODO(), tc.manifest)
-			assert.Equal(t, tc.mediaType, mediaType)
+	for _, sample := range []testdata.MediaTypeSample{
+		// Docker Schema 1
+		testdata.WithMediaTypeRemoved(testdata.DockerSchema1Manifest),
+		testdata.WithMediaTypeRemoved(testdata.DockerSchema1ManifestUnsigned),
+		// Docker Schema 2
+		testdata.DockerSchema2Manifest,
+		testdata.WithMediaTypeRemoved(testdata.DockerSchema2Manifest),
+		testdata.DockerSchema2ManifestList,
+		// OCI Image Spec
+		testdata.OCIImageIndex,
+		testdata.OCIImageManifest,
+		// Edge case
+		testdata.EmptySample,
+	} {
+		t.Run(sample.MediaType(), func(t *testing.T) {
+			t.Logf("content: %s", sample.Content())
+			actual := parseImageManifestMediaType(context.Background(), sample.Content())
+			assert.Equal(t, sample.MediaType(), actual)
 		})
 	}
 }
@@ -80,7 +65,7 @@ func TestResolve(t *testing.T) {
 	expectedImageTag := "latest"
 
 	// API output
-	imageDigest := "sha256:digest"
+	imageDigest := testdata.ImageDigest.String()
 	imageManifest := `{"schemaVersion": 2, "mediaType": "application/vnd.oci.image.manifest.v1+json"}`
 	image := &ecr.Image{
 		RepositoryName: aws.String(expectedRepository),
@@ -158,8 +143,31 @@ func TestResolveNoResult(t *testing.T) {
 }
 
 func TestResolvePusherDenyDigest(t *testing.T) {
-	ref := "ecr.aws/arn:aws:ecr:fake:123456789012:repository/foo/bar:latest@sha256:digest"
-	resolver := &ecrResolver{}
-	_, err := resolver.Pusher(context.Background(), ref)
-	assert.Error(t, err)
+	for _, ref := range []string{
+		"ecr.aws/arn:aws:ecr:fake:123456789012:repository/foo/bar@" + testdata.ImageDigest.String(),
+	} {
+		t.Run(ref, func(t *testing.T) {
+			resolver := &ecrResolver{}
+			p, err := resolver.Pusher(context.Background(), ref)
+			assert.Error(t, err)
+			assert.Nil(t, p)
+		})
+	}
+}
+
+func TestResolvePusherAllowTagDigest(t *testing.T) {
+	for _, ref := range []string{
+		"ecr.aws/arn:aws:ecr:fake:123456789012:repository/foo/bar:with-tag-and-digest@" + testdata.ImageDigest.String(),
+	} {
+		t.Run(ref, func(t *testing.T) {
+			resolver := &ecrResolver{
+				// Stub session
+				session: unit.Session,
+				clients: map[string]ecrAPI{},
+			}
+			p, err := resolver.Pusher(context.Background(), ref)
+			assert.NoError(t, err)
+			assert.NotNil(t, p)
+		})
+	}
 }

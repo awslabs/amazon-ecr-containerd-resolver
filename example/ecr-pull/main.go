@@ -29,7 +29,10 @@ import (
 )
 
 const (
+	// Default to no parallel layer downloading.
 	defaultParallelism = 0
+	// Default to no debug logging.
+	defaultEnableDebug = 0
 )
 
 func main() {
@@ -37,15 +40,19 @@ func main() {
 
 	if len(os.Args) < 2 {
 		log.G(ctx).Fatal("Must provide image to pull as argument")
+	} else if len(os.Args) > 2 {
+		log.G(ctx).Fatal("Must provide only the image to pull")
 	}
+
 	ref := os.Args[1]
+
 	parallelism := defaultParallelism
-	if parallelismEnv := os.Getenv("ECR_PULL_PARALLEL"); parallelismEnv != "" {
-		var err error
-		parallelism, err = strconv.Atoi(parallelismEnv)
-		if err != nil {
-			log.G(ctx).WithError(err).Fatal("Failed to parse ECR_PULL_PARALLEL")
-		}
+	parseEnvInt(ctx, "ECR_PULL_PARALLEL", &parallelism)
+
+	enableDebug := defaultEnableDebug
+	parseEnvInt(ctx, "ECR_PULL_DEBUG", &enableDebug)
+	if enableDebug == 1 {
+		log.L.Logger.SetLevel(log.TraceLevel)
 	}
 
 	address := "/run/containerd/containerd.sock"
@@ -103,5 +110,15 @@ func main() {
 	err = img.Unpack(ctx, snapshotter)
 	if err != nil {
 		log.G(ctx).WithError(err).WithField("img", img.Name).Fatal("Failed to unpack")
+	}
+}
+
+func parseEnvInt(ctx context.Context, varname string, val *int) {
+	if varval := os.Getenv(varname); varval != "" {
+		parsed, err := strconv.Atoi(varval)
+		if err != nil {
+			log.G(ctx).WithError(err).Fatalf("Failed to parse %s", varname)
+		}
+		*val = parsed
 	}
 }
