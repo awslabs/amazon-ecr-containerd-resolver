@@ -142,15 +142,20 @@ func TestResolveNoResult(t *testing.T) {
 	assert.Equal(t, reference.ErrInvalid, err)
 }
 
-func TestResolvePusherDenyDigest(t *testing.T) {
+func TestResolvePusherAllowsDigest(t *testing.T) {
 	for _, ref := range []string{
 		"ecr.aws/arn:aws:ecr:fake:123456789012:repository/foo/bar@" + testdata.ImageDigest.String(),
 	} {
 		t.Run(ref, func(t *testing.T) {
-			resolver := &ecrResolver{}
+			resolver := &ecrResolver{
+				clients: map[string]ecrAPI{
+					"fake": &fakeECRClient{},
+				},
+			}
+
 			p, err := resolver.Pusher(context.Background(), ref)
-			assert.Error(t, err)
-			assert.Nil(t, p)
+			assert.NoError(t, err)
+			assert.NotNil(t, p)
 		})
 	}
 }

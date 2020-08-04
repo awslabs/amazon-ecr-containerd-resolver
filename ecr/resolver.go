@@ -294,12 +294,11 @@ func (r *ecrResolver) Pusher(ctx context.Context, ref string) (remotes.Pusher, e
 		return nil, err
 	}
 
-	// ECR does not allow push by digest; references will include a digest when
-	// the ref is being pushed to a tag to denote *which* digest is the root
-	// descriptor in this push.
+	// References will include a digest when the ref is being pushed to a tag to
+	// denote *which* digest is the root descriptor in this push.
 	tag, digest := ecrSpec.TagDigest()
 	if tag == "" && digest != "" {
-		return nil, errors.New("pusher: cannot use digest reference for push location")
+		log.G(ctx).WithField("ref", ref).Debug("ecr.resolver.pusher: push by digest")
 	}
 
 	// The root descriptor's digest *must* be provided in order to properly tag
