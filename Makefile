@@ -42,6 +42,12 @@ $(COPY_BINARY): $(SOURCES)
 test: $(SOURCES)
 	go test -v $(shell go list ./... | grep -v '/vendor/')
 
+.PHONY: cover
+cover: $(SOURCES)
+	mkdir -p tmp
+	go test -coverprofile=tmp/coverage.out -v $(shell go list ./... | grep -v '/vendor/')
+	go tool cover -html=tmp/coverage.out -o tmp/coverage.html
+	@echo Code coverage report is generated as tmp/coverage.html
 
 .PHONY: clean
 clean:

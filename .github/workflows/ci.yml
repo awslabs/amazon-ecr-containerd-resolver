@@ -15,7 +15,7 @@ jobs:
       - name: build
         run: make build
       - name: test
-        run: make test
+        run: make cover
 
   lint:
     runs-on: ubuntu-latest
