@@ -36,7 +36,10 @@ import (
 	"github.com/pkg/errors"
 )
 
-var unimplemented = errors.New("unimplemented")
+var (
+	ErrInvalidManifest = errors.New("invalid manifest")
+	unimplemented      = errors.New("unimplemented")
+)
 
 type ecrResolver struct {
 	session                  *session.Session
@@ -184,7 +187,10 @@ func (r *ecrResolver) Resolve(ctx context.Context, ref string) (string, ocispec.
 			WithField("ref", ref).
 			WithField("manifest", manifestBody).
 			Trace("ecr.resolver.resolve: parsing mediaType from manifest")
-		mediaType = parseImageManifestMediaType(ctx, manifestBody)
+		mediaType, err = parseImageManifestMediaType(ctx, manifestBody)
+		if err != nil {
+			return "", ocispec.Descriptor{}, err
+		}
 	}
 	log.G(ctx).
 		WithField("ref", ref).
@@ -241,49 +247,43 @@ type manifestProbe struct {
 	Manifests []json.RawMessage `json:"manifests,omitempty"`
 }
 
-// TODO: add error to signal unparsable and unhandled manifest types.
-func parseImageManifestMediaType(ctx context.Context, body string) string {
+func parseImageManifestMediaType(ctx context.Context, body string) (string, error) {
 	// The unsigned variant of Docker v2 Schema 1 manifest mediaType.
 	const mediaTypeDockerSchema1ManifestUnsigned = "application/vnd.docker.distribution.manifest.v1+json"
-
-	// The type used as a fallback when parsing is not possible.
-	const unparsedMediaType = images.MediaTypeDockerSchema2Manifest
 
 	var manifest manifestProbe
 	err := json.Unmarshal([]byte(body), &manifest)
 	if err != nil {
-		log.G(ctx).WithField("manifest", body).
-			WithError(err).Warn("ecr.resolver.resolve: could not parse manifest")
-		return unparsedMediaType
+		return "", errors.Wrapf(ErrInvalidManifest, "failed to unmarshall %q as a manifest", body)
 	}
 
 	switch manifest.SchemaVersion {
 	case 2:
 		// Defer to the manifest declared type.
 		if manifest.MediaType != "" {
-			return manifest.MediaType
+			return manifest.MediaType, nil
 		}
 		// Is a manifest list.
 		if len(manifest.Manifests) > 0 {
-			return images.MediaTypeDockerSchema2ManifestList
+			return images.MediaTypeDockerSchema2ManifestList, nil
 		}
 		// Is a single image manifest.
-		return images.MediaTypeDockerSchema2Manifest
+		return images.MediaTypeDockerSchema2Manifest, nil
 
 	case 1:
 		// Defer to the manifest declared type.
 		if manifest.MediaType != "" {
-			return manifest.MediaType
+			return manifest.MediaType, nil
 		}
 		// Is Signed Docker Schema 1 manifest.
 		if len(manifest.Signatures) > 0 {
-			return images.MediaTypeDockerSchema1Manifest
+			return images.MediaTypeDockerSchema1Manifest, nil
 		}
 		// Is Unsigned Docker Schema 1 manifest.
-		return mediaTypeDockerSchema1ManifestUnsigned
+		return mediaTypeDockerSchema1ManifestUnsigned, nil
+	default:
+		return "", errors.Wrapf(ErrInvalidManifest, "unsupported schema version %d", manifest.SchemaVersion)
 	}
-
-	return ""
 }
 
 func (r *ecrResolver) Fetcher(ctx context.Context, ref string) (remotes.Fetcher, error) {

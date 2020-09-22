@@ -28,6 +28,7 @@ import (
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/awslabs/amazon-ecr-containerd-resolver/ecr/internal/testdata"
 )
@@ -49,7 +50,13 @@ func TestParseImageManifestMediaType(t *testing.T) {
 	} {
 		t.Run(sample.MediaType(), func(t *testing.T) {
 			t.Logf("content: %s", sample.Content())
-			actual := parseImageManifestMediaType(context.Background(), sample.Content())
+			actual, err := parseImageManifestMediaType(context.Background(), sample.Content())
+			if sample == testdata.EmptySample {
+				assert.Error(t, err)
+				assert.True(t, errors.Is(err, ErrInvalidManifest))
+				return
+			}
+			require.NoError(t, err)
 			assert.Equal(t, sample.MediaType(), actual)
 		})
 	}
