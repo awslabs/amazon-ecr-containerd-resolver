@@ -18,6 +18,7 @@ package ecr
 import (
 	"context"
 	"encoding/json"
+	"net/http"
 	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -43,6 +44,7 @@ type ecrResolver struct {
 	clientsLock              sync.Mutex
 	tracker                  docker.StatusTracker
 	layerDownloadParallelism int
+	httpClient               *http.Client
 }
 
 // ResolverOption represents a functional option for configuring the ECR
@@ -61,6 +63,9 @@ type ResolverOptions struct {
 	// downloaded in parallel.  If not specified, parallelism is currently
 	// disabled.
 	LayerDownloadParallelism int
+	// HTTPClient configures the HTTP client the resolver internally use for fetching.
+	// If not specified, http.DefaultClient is used.
+	HTTPClient *http.Client
 }
 
 // WithSession is a ResolverOption to use a specific AWS session.Session
@@ -87,6 +92,14 @@ func WithTracker(tracker docker.StatusTracker) ResolverOption {
 func WithLayerDownloadParallelism(parallelism int) ResolverOption {
 	return func(options *ResolverOptions) error {
 		options.LayerDownloadParallelism = parallelism
+		return nil
+	}
+}
+
+// WithHTTPClient is a ResolverOption to use a specific http.Client.
+func WithHTTPClient(client *http.Client) ResolverOption {
+	return func(options *ResolverOptions) error {
+		options.HTTPClient = client
 		return nil
 	}
 }
@@ -119,6 +132,7 @@ func NewResolver(options ...ResolverOption) (remotes.Resolver, error) {
 		clients:                  map[string]ecrAPI{},
 		tracker:                  resolverOptions.Tracker,
 		layerDownloadParallelism: resolverOptions.LayerDownloadParallelism,
+		httpClient:               http.DefaultClient,
 	}, nil
 }
 
