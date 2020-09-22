@@ -18,7 +18,6 @@ package ecr
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/request"
@@ -127,7 +126,6 @@ func (b *ecrBase) runGetImage(ctx context.Context, batchGetImageInput ecr.BatchG
 	batchGetImageOutput, err := b.client.BatchGetImageWithContext(ctx, &batchGetImageInput)
 	if err != nil {
 		log.G(ctx).WithError(err).Error("ecr.base.image: failed to get image")
-		fmt.Println(err)
 		return nil, err
 	}
 	log.G(ctx).WithField("batchGetImageOutput", batchGetImageOutput).Trace("ecr.base.image: api response")
