@@ -41,6 +41,7 @@ import (
 type ecrFetcher struct {
 	ecrBase
 	parallelism int
+	httpClient  *http.Client
 }
 
 var _ remotes.Fetcher = (*ecrFetcher)(nil)
@@ -168,8 +169,7 @@ func (f *ecrFetcher) fetchLayerURL(ctx context.Context, desc ocispec.Descriptor,
 }
 
 func (f *ecrFetcher) doRequest(ctx context.Context, req *http.Request) (*http.Response, error) {
-	// TODO: use configurable http.Client
-	client := http.DefaultClient
+	client := f.httpClient
 	resp, err := ctxhttp.Do(ctx, client, req)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to do request")
@@ -187,7 +187,11 @@ func (f *ecrFetcher) fetchLayerHtcat(ctx context.Context, desc ocispec.Descripto
 			Error("ecr.fetcher.layer.htcat: failed to parse URL")
 		return nil, err
 	}
-	htc := htcat.New(http.DefaultClient, parsedURL, f.parallelism)
+	hc := f.httpClient
+	if hc == nil {
+		hc = http.DefaultClient
+	}
+	htc := htcat.New(hc, parsedURL, f.parallelism)
 	pr, pw := io.Pipe()
 	go func() {
 		defer pw.Close()
