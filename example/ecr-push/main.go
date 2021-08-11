@@ -32,6 +32,7 @@ import (
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -58,7 +59,7 @@ func main() {
 	enableDebug := defaultEnableDebug
 	parseEnvInt(ctx, "ECR_PUSH_DEBUG", &enableDebug)
 	if enableDebug == 1 {
-		log.L.Logger.SetLevel(log.TraceLevel)
+		log.L.Logger.SetLevel(logrus.TraceLevel)
 	}
 
 	client, err := containerd.New("/run/containerd/containerd.sock")

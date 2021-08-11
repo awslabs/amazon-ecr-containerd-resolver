@@ -26,6 +26,7 @@ import (
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/namespaces"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -52,7 +53,7 @@ func main() {
 	enableDebug := defaultEnableDebug
 	parseEnvInt(ctx, "ECR_PULL_DEBUG", &enableDebug)
 	if enableDebug == 1 {
-		log.L.Logger.SetLevel(log.TraceLevel)
+		log.L.Logger.SetLevel(logrus.TraceLevel)
 	}
 
 	address := "/run/containerd/containerd.sock"

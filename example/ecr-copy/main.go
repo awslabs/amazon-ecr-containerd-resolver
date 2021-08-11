@@ -24,6 +24,7 @@ import (
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/namespaces"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -46,7 +47,7 @@ func main() {
 	enableDebug := defaultEnableDebug
 	parseEnvInt(ctx, "ECR_COPY_DEBUG", &enableDebug)
 	if enableDebug == 1 {
-		log.L.Logger.SetLevel(log.TraceLevel)
+		log.L.Logger.SetLevel(logrus.TraceLevel)
 	}
 
 	client, err := containerd.New("/run/containerd/containerd.sock")
