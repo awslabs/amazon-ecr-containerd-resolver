@@ -5,7 +5,7 @@ go 1.12
 require (
 	github.com/Microsoft/go-winio v0.5.0 // indirect
 	github.com/aws/aws-sdk-go v1.32.13
-	github.com/containerd/containerd v1.5.9
+	github.com/containerd/containerd v1.5.10
 	github.com/docker/go-units v0.4.0
 	github.com/gogo/googleapis v1.4.1 // indirect
 	github.com/google/uuid v1.3.0 // indirect
