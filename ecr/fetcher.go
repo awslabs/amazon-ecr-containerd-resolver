@@ -64,6 +64,7 @@ func (f *ecrFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.Rea
 		images.MediaTypeDockerSchema2LayerGzip,
 		images.MediaTypeDockerSchema2Config,
 		ocispec.MediaTypeImageLayerGzip,
+		ocispec.MediaTypeImageLayerZstd,
 		ocispec.MediaTypeImageLayer,
 		ocispec.MediaTypeImageConfig:
 		return f.fetchLayer(ctx, desc)
