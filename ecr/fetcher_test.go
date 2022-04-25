@@ -270,6 +270,7 @@ func TestFetchLayer(t *testing.T) {
 		images.MediaTypeDockerSchema2LayerGzip,
 		images.MediaTypeDockerSchema2Config,
 		ocispec.MediaTypeImageLayerGzip,
+		ocispec.MediaTypeImageLayerZstd,
 		ocispec.MediaTypeImageLayer,
 		ocispec.MediaTypeImageConfig,
 	} {
