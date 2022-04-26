@@ -130,12 +130,17 @@ func NewResolver(options ...ResolverOption) (remotes.Resolver, error) {
 	if resolverOptions.Tracker == nil {
 		resolverOptions.Tracker = docker.NewInMemoryTracker()
 	}
+
+	if resolverOptions.HTTPClient == nil {
+		resolverOptions.HTTPClient = http.DefaultClient
+	}
+
 	return &ecrResolver{
 		session:                  resolverOptions.Session,
 		clients:                  map[string]ecrAPI{},
 		tracker:                  resolverOptions.Tracker,
 		layerDownloadParallelism: resolverOptions.LayerDownloadParallelism,
-		httpClient:               http.DefaultClient,
+		httpClient:               resolverOptions.HTTPClient,
 	}, nil
 }
 
@@ -228,7 +233,9 @@ func (r *ecrResolver) getClient(region string) ecrAPI {
 	r.clientsLock.Lock()
 	defer r.clientsLock.Unlock()
 	if _, ok := r.clients[region]; !ok {
-		r.clients[region] = ecrsdk.New(r.session, &aws.Config{Region: aws.String(region)})
+		r.clients[region] = ecrsdk.New(r.session, &aws.Config{
+			Region:     aws.String(region),
+			HTTPClient: r.httpClient})
 	}
 	return r.clients[region]
 }
@@ -298,6 +305,7 @@ func (r *ecrResolver) Fetcher(ctx context.Context, ref string) (remotes.Fetcher,
 			ecrSpec: ecrSpec,
 		},
 		parallelism: r.layerDownloadParallelism,
+		httpClient:  r.httpClient,
 	}, nil
 }
 
