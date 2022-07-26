@@ -80,10 +80,8 @@ This support is backed by the [htcat library](https://github.com/htcat/htcat).
 
 ## Building
 
-The Amazon ECR containerd resolver manages its dependencies with [Go 1.11
-modules](https://github.com/golang/go/wiki/Modules) and works best when used
-with Go 1.11 or greater.  If you have Go 1.11 or greater installed, you can
-build the example programs with `make`.
+The Amazon ECR containerd resolver manages its dependencies with [Go modules](https://github.com/golang/go/wiki/Modules) and requires Go 1.17 or greater.
+If you have Go 1.17 or greater installed, you can build the example programs with `make`.
 
 ## License
 
