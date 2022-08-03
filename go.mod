@@ -4,7 +4,7 @@ go 1.12
 
 require (
 	github.com/Microsoft/go-winio v0.5.0 // indirect
-	github.com/aws/aws-sdk-go v1.32.13
+	github.com/aws/aws-sdk-go v1.44.69
 	github.com/containerd/containerd v1.5.13
 	github.com/docker/go-units v0.4.0
 	github.com/gogo/googleapis v1.4.1 // indirect
@@ -16,7 +16,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.0
 	github.com/stretchr/testify v1.8.0
-	golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4
+	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	google.golang.org/grpc v1.39.1 // indirect
 )
