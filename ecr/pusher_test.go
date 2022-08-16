@@ -17,6 +17,7 @@ package ecr
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -31,7 +32,6 @@ import (
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -70,7 +70,7 @@ func TestPushManifestReturnsManifestWriter(t *testing.T) {
 				assert.Equal(t, repository, aws.StringValue(input.RepositoryName))
 
 				assert.ElementsMatch(t, []*ecr.ImageIdentifier{
-					&ecr.ImageIdentifier{ImageDigest: aws.String(imageDigest)}},
+					{ImageDigest: aws.String(imageDigest)}},
 					input.ImageIds,
 					"should have requested image by its digest")
 
@@ -148,8 +148,7 @@ func TestPushManifestAlreadyExists(t *testing.T) {
 	start := time.Now()
 	_, err := pusher.Push(context.Background(), desc)
 	assert.Error(t, err)
-	cause := errors.Cause(err)
-	assert.Equal(t, errdefs.ErrAlreadyExists, cause)
+	assert.True(t, errors.Is(err, errdefs.ErrAlreadyExists))
 	end := time.Now()
 
 	refKey := remotes.MakeRefKey(context.Background(), desc)
@@ -269,8 +268,7 @@ func TestPushBlobAlreadyExists(t *testing.T) {
 	start := time.Now()
 	_, err := pusher.Push(context.Background(), desc)
 	assert.Error(t, err)
-	cause := errors.Cause(err)
-	assert.Equal(t, errdefs.ErrAlreadyExists, cause)
+	assert.True(t, errors.Is(err, errdefs.ErrAlreadyExists))
 	end := time.Now()
 
 	refKey := remotes.MakeRefKey(context.Background(), desc)

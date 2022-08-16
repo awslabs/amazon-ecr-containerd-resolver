@@ -16,6 +16,8 @@
 package ecr
 
 import (
+	"errors"
+	"fmt"
 	"regexp"
 	"strings"
 
@@ -25,7 +27,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/ecr"
 	"github.com/containerd/containerd/reference"
 	"github.com/opencontainers/go-digest"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -117,7 +118,7 @@ func ParseImageURI(input string) (ECRSpec, error) {
 		//
 		// https://github.com/opencontainers/go-digest/blob/ea51bea511f75cfa3ef6098cc253c5c3609b037a/digest.go#L110-L115
 		if err != nil && err != digest.ErrDigestUnsupported {
-			return ECRSpec{}, errors.Wrap(err, errInvalidImageURI.Error())
+			return ECRSpec{}, fmt.Errorf("%v: %w", errInvalidImageURI.Error(), err)
 		}
 	}
 

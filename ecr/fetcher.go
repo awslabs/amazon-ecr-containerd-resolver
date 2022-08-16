@@ -18,6 +18,8 @@ package ecr
 import (
 	"bytes"
 	"context"
+	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -32,7 +34,6 @@ import (
 	"github.com/containerd/containerd/remotes"
 	"github.com/htcat/htcat"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 	"golang.org/x/net/context/ctxhttp"
 )
 
@@ -161,9 +162,9 @@ func (f *ecrFetcher) fetchLayerURL(ctx context.Context, desc ocispec.Descriptor,
 	if resp.StatusCode > 299 {
 		resp.Body.Close()
 		if resp.StatusCode == http.StatusNotFound {
-			return nil, errors.Wrapf(errdefs.ErrNotFound, "content at %v not found", downloadURL)
+			return nil, fmt.Errorf("content at %v not found: %w", downloadURL, errdefs.ErrNotFound)
 		}
-		return nil, errors.Errorf("ecr.fetcher.layer.url: unexpected status code %v: %v", downloadURL, resp.Status)
+		return nil, fmt.Errorf("ecr.fetcher.layer.url: unexpected status code %v: %v", downloadURL, resp.Status)
 	}
 	log.G(ctx).WithField("desc", desc).Debug("ecr.fetcher.layer.url: returning body")
 	return resp.Body, nil
@@ -173,7 +174,7 @@ func (f *ecrFetcher) doRequest(ctx context.Context, req *http.Request) (*http.Re
 	client := f.httpClient
 	resp, err := ctxhttp.Do(ctx, client, req)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to do request")
+		return nil, fmt.Errorf("failed to do request: %w", err)
 	}
 	return resp, nil
 }

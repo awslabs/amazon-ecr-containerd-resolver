@@ -1,7 +1,7 @@
 package testdata
 
 import (
-  ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 var OCIImageManifest MediaTypeSample = &mediaTypeSample{

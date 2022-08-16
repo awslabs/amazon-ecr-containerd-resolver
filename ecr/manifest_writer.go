@@ -18,6 +18,8 @@ package ecr
 import (
 	"bytes"
 	"context"
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -27,7 +29,6 @@ import (
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 type manifestWriter struct {
@@ -87,7 +88,7 @@ func (mw *manifestWriter) Commit(ctx context.Context, size int64, expected diges
 
 	output, err := mw.base.client.PutImageWithContext(ctx, putImageInput)
 	if err != nil {
-		return errors.Wrapf(err, "ecr: failed to put manifest: %v", ecrSpec)
+		return fmt.Errorf("ecr: failed to put manifest: %v: %w", ecrSpec, err)
 	}
 
 	status, err := mw.tracker.GetStatus(mw.ref)
@@ -99,12 +100,12 @@ func (mw *manifestWriter) Commit(ctx context.Context, size int64, expected diges
 		log.G(mw.ctx).WithError(err).WithField("ref", mw.ref).Warn("Failed to update status")
 	}
 	if output == nil {
-		return errors.Errorf("ecr: failed to put manifest, nil output: %v", ecrSpec)
+		return fmt.Errorf("ecr: failed to put manifest, nil output: %v", ecrSpec)
 	}
 
 	actual := aws.StringValue(output.Image.ImageId.ImageDigest)
 	if actual != expected.String() {
-		return errors.Errorf("digest mismatch: ECR returned %s, expected %s", actual, expected)
+		return fmt.Errorf("digest mismatch: ECR returned %s, expected %s", actual, expected)
 	}
 
 	return nil
