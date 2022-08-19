@@ -13,7 +13,7 @@ type MediaTypeSample interface {
 // MediaTypeSample provides a sample document for a given mediaType.
 type mediaTypeSample struct {
 	mediaType string
-	content string
+	content   string
 }
 
 // MediaType is the defined sample's actual mediaType.
@@ -29,7 +29,7 @@ func (s *mediaTypeSample) Content() string {
 // EmptySample is an edge case sample, use
 var EmptySample MediaTypeSample = &mediaTypeSample{
 	mediaType: "",
-	content: `{}`,
+	content:   `{}`,
 }
 
 func WithMediaTypeRemoved(src MediaTypeSample) MediaTypeSample {
@@ -47,6 +47,6 @@ func WithMediaTypeRemoved(src MediaTypeSample) MediaTypeSample {
 	}
 	return &mediaTypeSample{
 		mediaType: src.MediaType(),
-		content: string(data),
+		content:   string(data),
 	}
 }

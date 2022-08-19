@@ -17,6 +17,8 @@ package ecr
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -29,7 +31,6 @@ import (
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 var (
@@ -73,7 +74,7 @@ func (p ecrPusher) pushManifest(ctx context.Context, desc ocispec.Descriptor) (c
 	if exists {
 		log.G(ctx).Debug("ecr.pusher.manifest: content already on remote")
 		p.markStatusExists(ctx, desc)
-		return nil, errors.Wrapf(errdefs.ErrAlreadyExists, "content %v on remote", desc.Digest)
+		return nil, fmt.Errorf("content %v on remote: %w", desc.Digest, errdefs.ErrAlreadyExists)
 	}
 
 	ref := p.markStatusStarted(ctx, desc)
@@ -114,7 +115,7 @@ func (p ecrPusher) pushBlob(ctx context.Context, desc ocispec.Descriptor) (conte
 	if exists {
 		log.G(ctx).Debug("ecr.pusher.blob: content already on remote")
 		p.markStatusExists(ctx, desc)
-		return nil, errors.Wrapf(errdefs.ErrAlreadyExists, "content %v on remote", desc.Digest)
+		return nil, fmt.Errorf("content %v on remote: %w", desc.Digest, errdefs.ErrAlreadyExists)
 	}
 
 	ref := p.markStatusStarted(ctx, desc)

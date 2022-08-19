@@ -18,6 +18,7 @@ package ecr
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -35,7 +36,6 @@ import (
 	"github.com/containerd/containerd/images"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -108,8 +108,7 @@ func TestFetchForeignLayerNotFound(t *testing.T) {
 
 	_, err := fetcher.Fetch(context.Background(), desc)
 	assert.Error(t, err)
-	cause := errors.Cause(err)
-	assert.Equal(t, errdefs.ErrNotFound, cause)
+	assert.True(t, errors.Is(err, errdefs.ErrNotFound))
 }
 
 func TestFetchManifest(t *testing.T) {

@@ -18,6 +18,8 @@ package ecr
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"sync"
 
@@ -33,7 +35,6 @@ import (
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/pkg/errors"
 )
 
 var (
@@ -223,7 +224,7 @@ func (r *ecrResolver) Resolve(ctx context.Context, ref string) (string, ocispec.
 	// assert matching digest if the provided ref includes one.
 	if expectedDigest := ecrSpec.Spec().Digest().String(); expectedDigest != "" &&
 		desc.Digest.String() != expectedDigest {
-		return "", ocispec.Descriptor{}, errors.Wrap(errdefs.ErrFailedPrecondition, "resolved image digest mismatch")
+		return "", ocispec.Descriptor{}, fmt.Errorf("resolved image digest mismatch: %w", errdefs.ErrFailedPrecondition)
 	}
 
 	return ecrSpec.Canonical(), desc, nil
@@ -261,7 +262,7 @@ func parseImageManifestMediaType(ctx context.Context, body string) (string, erro
 	var manifest manifestProbe
 	err := json.Unmarshal([]byte(body), &manifest)
 	if err != nil {
-		return "", errors.Wrapf(ErrInvalidManifest, "failed to unmarshall %q as a manifest", body)
+		return "", fmt.Errorf("failed to unmarshall %q as a manifest: %w", body, ErrInvalidManifest)
 	}
 
 	switch manifest.SchemaVersion {
@@ -289,7 +290,7 @@ func parseImageManifestMediaType(ctx context.Context, body string) (string, erro
 		// Is Unsigned Docker Schema 1 manifest.
 		return mediaTypeDockerSchema1ManifestUnsigned, nil
 	default:
-		return "", errors.Wrapf(ErrInvalidManifest, "unsupported schema version %d", manifest.SchemaVersion)
+		return "", fmt.Errorf("unsupported schema version %d: %w", manifest.SchemaVersion, ErrInvalidManifest)
 	}
 }
 
