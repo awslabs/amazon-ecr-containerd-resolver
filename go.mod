@@ -6,7 +6,7 @@ require (
 	github.com/Microsoft/go-winio v0.5.0 // indirect
 	github.com/aws/aws-sdk-go v1.32.13
 	github.com/containerd/containerd v1.5.13
-	github.com/docker/go-units v0.4.0
+	github.com/docker/go-units v0.5.0
 	github.com/gogo/googleapis v1.4.1 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/htcat/htcat v1.0.2
