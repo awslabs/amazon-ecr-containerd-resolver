@@ -1,6 +1,8 @@
 # Amazon ECR containerd resolver
 
-![.github/workflows/ci.yml](https://github.com/awslabs/amazon-ecr-containerd-resolver/workflows/.github/workflows/ci.yml/badge.svg)
+[![.github/workflows/ci.yml](https://github.com/awslabs/amazon-ecr-containerd-resolver/actions/workflows/ci.yml/badge.svg)](https://github.com/awslabs/amazon-ecr-containerd-resolver/actions/workflows/ci.yml)
+[![CodeQL Scan](https://github.com/awslabs/amazon-ecr-containerd-resolver/actions/workflows/codeql.yml/badge.svg)](https://github.com/awslabs/amazon-ecr-containerd-resolver/actions/workflows/codeql.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/awslabs/amazon-ecr-containerd-resolver)](https://goreportcard.com/report/github.com/awslabs/amazon-ecr-containerd-resolver)
 
 The Amazon ECR containerd resolver is an implementation of a
 [containerd](https://github.com/containerd/containerd)
