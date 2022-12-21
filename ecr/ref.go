@@ -41,7 +41,7 @@ var (
 	// Example 1: 777777777777.dkr.ecr.us-west-2.amazonaws.com/my_image:latest
 	// Example 2: 777777777777.dkr.ecr.cn-north-1.amazonaws.com.cn/my_image:latest
 	// TODO: Support ECR FIPS endpoints, i.e "ecr-fips" in the URL instead of "ecr"
-	ecrRegex           = regexp.MustCompile(`(^[a-zA-Z0-9][a-zA-Z0-9-_]*)\.dkr\.ecr\.([a-zA-Z0-9][a-zA-Z0-9-_]*)\.amazonaws\.com(\.cn)?.*`)
+	ecrRegex           = regexp.MustCompile(`(^[a-zA-Z0-9][a-zA-Z0-9-_]*)\.dkr\.ecr\.([a-zA-Z0-9][a-zA-Z0-9-_]*)\.amazonaws\.com(\.cn)?/.*`)
 	errInvalidImageURI = errors.New("ecrspec: invalid image URI")
 )
 
