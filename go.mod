@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/aws/aws-sdk-go v1.44.124
-	github.com/containerd/containerd v1.6.14
+	github.com/containerd/containerd v1.6.17
 	github.com/docker/go-units v0.5.0
 	github.com/htcat/htcat v1.0.2
 	github.com/opencontainers/go-digest v1.0.0
