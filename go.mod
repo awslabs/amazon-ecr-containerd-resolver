@@ -3,7 +3,7 @@ module github.com/awslabs/amazon-ecr-containerd-resolver
 go 1.17
 
 require (
-	github.com/aws/aws-sdk-go v1.45.20
+	github.com/aws/aws-sdk-go v1.48.8
 	github.com/containerd/containerd v1.6.18
 	github.com/docker/go-units v0.5.0
 	github.com/htcat/htcat v1.0.2
@@ -11,7 +11,7 @@ require (
 	github.com/opencontainers/image-spec v1.1.0-rc4
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.8.4
-	golang.org/x/net v0.15.0
+	golang.org/x/net v0.17.0
 	golang.org/x/sync v0.3.0
 )
 
@@ -42,7 +42,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	go.opencensus.io v0.23.0 // indirect
-	golang.org/x/sys v0.12.0 // indirect
+	golang.org/x/sys v0.13.0 // indirect
 	golang.org/x/text v0.13.0 // indirect
 	google.golang.org/genproto v0.0.0-20230110181048-76db0878b65f // indirect
 	google.golang.org/grpc v1.53.0 // indirect
