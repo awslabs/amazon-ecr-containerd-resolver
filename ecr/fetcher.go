@@ -28,6 +28,8 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ecr"
+	httputil "github.com/awslabs/amazon-ecr-containerd-resolver/ecr/internal/util/http"
+	ociutil "github.com/awslabs/amazon-ecr-containerd-resolver/ecr/internal/util/oci"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/log"
@@ -48,7 +50,7 @@ type ecrFetcher struct {
 var _ remotes.Fetcher = (*ecrFetcher)(nil)
 
 func (f *ecrFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.ReadCloser, error) {
-	ctx = log.WithLogger(ctx, log.G(ctx).WithField("desc", desc))
+	ctx = log.WithLogger(ctx, log.G(ctx).WithField("desc", ociutil.RedactDescriptor(desc)))
 	log.G(ctx).Debug("ecr.fetch")
 
 	// need to do different things based on the media type
@@ -119,6 +121,7 @@ func (f *ecrFetcher) fetchLayer(ctx context.Context, desc ocispec.Descriptor) (i
 	}
 
 	downloadURL := aws.StringValue(output.DownloadUrl)
+	ctx = log.WithLogger(ctx, log.G(ctx).WithField("url", httputil.RedactHTTPQueryValuesFromURL(downloadURL)))
 	if f.parallelism > 0 {
 		return f.fetchLayerHtcat(ctx, desc, downloadURL)
 	}
@@ -132,13 +135,14 @@ func (f *ecrFetcher) fetchForeignLayer(ctx context.Context, desc ocispec.Descrip
 	}
 	var err error
 	for _, layerURL := range desc.URLs {
-		log.G(ctx).WithField("url", layerURL).Debug("ecr.fetcher.layer.foreign: fetching from URL")
+		redactedDownloadURL := httputil.RedactHTTPQueryValuesFromURL(layerURL)
+		log.G(ctx).WithField("url", redactedDownloadURL).Debug("ecr.fetcher.layer.foreign: fetching from URL")
 		var rdc io.ReadCloser
 		rdc, err = f.fetchLayerURL(ctx, desc, layerURL)
 		if err == nil {
 			return rdc, nil
 		}
-		log.G(ctx).WithField("url", layerURL).WithError(err).Warn("ecr.fetcher.layer.foreign: unable to fetch from URL")
+		log.G(ctx).WithField("url", redactedDownloadURL).WithError(err).Warn("ecr.fetcher.layer.foreign: unable to fetch from URL")
 	}
 	return nil, err
 }
@@ -148,11 +152,10 @@ func (f *ecrFetcher) fetchLayerURL(ctx context.Context, desc ocispec.Descriptor,
 	if err != nil {
 		log.G(ctx).
 			WithError(err).
-			WithField("url", downloadURL).
 			Error("ecr.fetcher.layer.url: failed to create HTTP request")
 		return nil, err
 	}
-	log.G(ctx).WithField("url", downloadURL).Debug("ecr.fetcher.layer.url")
+	log.G(ctx).Debug("ecr.fetcher.layer.url")
 
 	req.Header.Set("Accept", strings.Join([]string{desc.MediaType, `*`}, ", "))
 	resp, err := f.doRequest(ctx, req)
@@ -161,12 +164,13 @@ func (f *ecrFetcher) fetchLayerURL(ctx context.Context, desc ocispec.Descriptor,
 	}
 	if resp.StatusCode > 299 {
 		resp.Body.Close()
+		redactedDownloadURL := httputil.RedactHTTPQueryValuesFromURL(downloadURL)
 		if resp.StatusCode == http.StatusNotFound {
-			return nil, fmt.Errorf("content at %v not found: %w", downloadURL, errdefs.ErrNotFound)
+			return nil, fmt.Errorf("content at %v not found: %w", redactedDownloadURL, errdefs.ErrNotFound)
 		}
-		return nil, fmt.Errorf("ecr.fetcher.layer.url: unexpected status code %v: %v", downloadURL, resp.Status)
+		return nil, fmt.Errorf("ecr.fetcher.layer.url: unexpected status code %v: %v", redactedDownloadURL, resp.Status)
 	}
-	log.G(ctx).WithField("desc", desc).Debug("ecr.fetcher.layer.url: returning body")
+	log.G(ctx).Debug("ecr.fetcher.layer.url: returning body")
 	return resp.Body, nil
 }
 
@@ -174,18 +178,17 @@ func (f *ecrFetcher) doRequest(ctx context.Context, req *http.Request) (*http.Re
 	client := f.httpClient
 	resp, err := ctxhttp.Do(ctx, client, req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to do request: %w", err)
+		return nil, fmt.Errorf("failed to do request: %w", httputil.RedactHTTPQueryValuesFromURLError(err))
 	}
 	return resp, nil
 }
 
 func (f *ecrFetcher) fetchLayerHtcat(ctx context.Context, desc ocispec.Descriptor, downloadURL string) (io.ReadCloser, error) {
-	log.G(ctx).WithField("url", downloadURL).Debug("ecr.fetcher.layer.htcat")
+	log.G(ctx).Debug("ecr.fetcher.layer.htcat")
 	parsedURL, err := url.Parse(downloadURL)
 	if err != nil {
 		log.G(ctx).
 			WithError(err).
-			WithField("url", downloadURL).
 			Error("ecr.fetcher.layer.htcat: failed to parse URL")
 		return nil, err
 	}
@@ -200,8 +203,7 @@ func (f *ecrFetcher) fetchLayerHtcat(ctx context.Context, desc ocispec.Descripto
 		_, err := htc.WriteTo(pw)
 		if err != nil {
 			log.G(ctx).
-				WithError(err).
-				WithField("url", downloadURL).
+				WithError(httputil.RedactHTTPQueryValuesFromURLError(err)).
 				Error("ecr.fetcher.layer.htcat: failed to download layer")
 		}
 	}()
