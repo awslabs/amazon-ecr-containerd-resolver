@@ -20,7 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
@@ -85,7 +85,7 @@ func TestFetchForeignLayer(t *testing.T) {
 			require.NoError(t, err, "fetch should succeed from test server")
 			defer reader.Close()
 
-			output, err := ioutil.ReadAll(reader)
+			output, err := io.ReadAll(reader)
 			assert.NoError(t, err, "should have a valid byte buffer")
 			assert.Equal(t, expectedBody, string(output))
 
@@ -189,7 +189,7 @@ func TestFetchManifest(t *testing.T) {
 				require.NoError(t, err, "fetch")
 				defer reader.Close()
 				assert.Equal(t, 1, callCount, "BatchGetImage should be called once")
-				manifest, err := ioutil.ReadAll(reader)
+				manifest, err := io.ReadAll(reader)
 				require.NoError(t, err, "reading manifest")
 				assert.Equal(t, imageManifest, string(manifest))
 			})
@@ -290,7 +290,7 @@ func TestFetchLayer(t *testing.T) {
 			assert.NoError(t, err, "fetch")
 			defer reader.Close()
 			assert.Equal(t, 1, callCount, "GetDownloadURLForLayer should be called once")
-			body, err := ioutil.ReadAll(reader)
+			body, err := io.ReadAll(reader)
 			assert.NoError(t, err, "reading body")
 			assert.Equal(t, expectedBody, string(body))
 		})
@@ -362,7 +362,7 @@ func TestFetchLayerHtcat(t *testing.T) {
 	assert.NoError(t, err, "fetch")
 	defer reader.Close()
 	assert.Equal(t, 1, downloadURLCallCount, "GetDownloadURLForLayer should be called once")
-	body, err := ioutil.ReadAll(reader)
+	body, err := io.ReadAll(reader)
 	assert.NoError(t, err, "reading body")
 	assert.Equal(t, expectedBody, body)
 	assert.True(t, handlerCallCount > 1, "ServeContent should be called more than once: %d", handlerCallCount)
