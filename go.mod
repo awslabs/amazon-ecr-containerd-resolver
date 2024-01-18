@@ -4,11 +4,11 @@ go 1.19
 
 require (
 	github.com/aws/aws-sdk-go v1.49.1
-	github.com/containerd/containerd v1.6.24
+	github.com/containerd/containerd v1.6.19
 	github.com/docker/go-units v0.5.0
 	github.com/htcat/htcat v1.0.2
 	github.com/opencontainers/go-digest v1.0.0
-	github.com/opencontainers/image-spec v1.1.0-rc4
+	github.com/opencontainers/image-spec v1.1.0-rc.6
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.8.4
 	golang.org/x/net v0.19.0
