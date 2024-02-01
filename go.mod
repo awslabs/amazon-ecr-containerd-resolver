@@ -3,7 +3,7 @@ module github.com/awslabs/amazon-ecr-containerd-resolver
 go 1.19
 
 require (
-	github.com/aws/aws-sdk-go v1.49.1
+	github.com/aws/aws-sdk-go v1.50.9
 	github.com/containerd/containerd v1.6.24
 	github.com/docker/go-units v0.5.0
 	github.com/htcat/htcat v1.0.2
