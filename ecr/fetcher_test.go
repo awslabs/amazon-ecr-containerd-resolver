@@ -18,10 +18,10 @@ package ecr
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"io"
-	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -338,7 +338,8 @@ func TestFetchLayerHtcat(t *testing.T) {
 		mB = 1024 * kB
 	)
 	expectedBody := make([]byte, 30*mB)
-	rand.Read(expectedBody)
+	_, err := rand.Read(expectedBody)
+	assert.NoError(t, err)
 	handlerCallCount := 0
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		handlerCallCount++
