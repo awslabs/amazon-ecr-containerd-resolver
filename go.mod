@@ -2,6 +2,7 @@ module github.com/awslabs/amazon-ecr-containerd-resolver
 
 go 1.19
 
+replace github.com/htcat/htcat v1.0.2 => /home/ec2-user/htcat
 require (
 	github.com/aws/aws-sdk-go v1.51.10
 	github.com/containerd/containerd v1.6.24
@@ -49,3 +50,4 @@ require (
 	google.golang.org/protobuf v1.33.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+

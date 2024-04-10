@@ -195,7 +195,7 @@ func (f *ecrFetcher) fetchLayerHtcat(ctx context.Context, desc ocispec.Descripto
 	if hc == nil {
 		hc = http.DefaultClient
 	}
-	htc := htcat.New(hc, parsedURL, f.parallelism)
+	htc := htcat.New(hc, parsedURL, f.parallelism, 50)
 	pr, pw := io.Pipe()
 	go func() {
 		defer pw.Close()
