@@ -1,6 +1,7 @@
 module github.com/awslabs/amazon-ecr-containerd-resolver
 
 go 1.21
+toolchain go1.23.7
 
 require (
 	github.com/aws/aws-sdk-go v1.55.5
@@ -12,7 +13,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.10.0
 	golang.org/x/net v0.33.0
-	golang.org/x/sync v0.10.0
+	golang.org/x/sync v0.12.0
 )
 
 require (
