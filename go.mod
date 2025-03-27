@@ -2,6 +2,8 @@ module github.com/awslabs/amazon-ecr-containerd-resolver
 
 go 1.23.0
 
+toolchain go1.24.1
+
 require (
 	github.com/aws/aws-sdk-go v1.55.6
 	github.com/containerd/containerd v1.6.26
@@ -11,7 +13,7 @@ require (
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.10.0
-	golang.org/x/net v0.37.0
+	golang.org/x/net v0.38.0
 	golang.org/x/sync v0.12.0
 )
 
