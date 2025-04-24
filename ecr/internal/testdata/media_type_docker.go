@@ -1,6 +1,6 @@
 package testdata
 
-import "github.com/containerd/containerd/images"
+import "github.com/containerd/containerd/v2/core/images"
 
 // DockerSchema2Manifest provides a Docker v2 schema 2 manifest document.
 //
@@ -8,7 +8,6 @@ import "github.com/containerd/containerd/images"
 // https://github.com/docker/distribution and is licensed under Apache 2.0.
 //
 // https://github.com/docker/distribution/blob/742aab907b54a367e1ac7033fb9fe73b0e7344f5/docs/spec/manifest-v2-2.md#example-image-manifest
-//
 var DockerSchema2Manifest MediaTypeSample = &mediaTypeSample{
 	mediaType: images.MediaTypeDockerSchema2Manifest,
 	content: `
@@ -48,7 +47,6 @@ var DockerSchema2Manifest MediaTypeSample = &mediaTypeSample{
 // https://github.com/docker/distribution and is licensed under Apache 2.0.
 //
 // https://github.com/docker/distribution/blob/742aab907b54a367e1ac7033fb9fe73b0e7344f5/docs/spec/manifest-v2-2.md#example-manifest-list
-//
 var DockerSchema2ManifestList = &mediaTypeSample{
 	mediaType: images.MediaTypeDockerSchema2ManifestList,
 	content: `
@@ -90,7 +88,6 @@ var DockerSchema2ManifestList = &mediaTypeSample{
 // 2.0.
 //
 // https://github.com/docker/distribution/blob/742aab907b54a367e1ac7033fb9fe73b0e7344f5/docs/spec/manifest-v2-1.md#example-manifest
-//
 var DockerSchema1ManifestUnsigned = &mediaTypeSample{
 	mediaType: "application/vnd.docker.distribution.manifest.v1+json",
 	content: `
@@ -131,7 +128,6 @@ var DockerSchema1ManifestUnsigned = &mediaTypeSample{
 // https://github.com/docker/distribution and is licensed under Apache 2.0.
 //
 // https://github.com/docker/distribution/blob/742aab907b54a367e1ac7033fb9fe73b0e7344f5/docs/spec/manifest-v2-1.md#example-manifest
-//
 var DockerSchema1Manifest MediaTypeSample = &mediaTypeSample{
 	mediaType: images.MediaTypeDockerSchema1Manifest,
 	content: `

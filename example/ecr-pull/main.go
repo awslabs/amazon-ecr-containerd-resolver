@@ -21,10 +21,11 @@ import (
 	"strconv"
 
 	"github.com/awslabs/amazon-ecr-containerd-resolver/ecr"
-	"github.com/containerd/containerd"
-	"github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/log"
-	"github.com/containerd/containerd/namespaces"
+	containerd "github.com/containerd/containerd/v2/client"
+	"github.com/containerd/containerd/v2/core/images"
+	"github.com/containerd/containerd/v2/defaults"
+	"github.com/containerd/containerd/v2/pkg/namespaces"
+	"github.com/containerd/log"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 )
@@ -90,7 +91,7 @@ func main() {
 	img, err := client.Pull(ctx, ref,
 		containerd.WithResolver(resolver),
 		containerd.WithImageHandler(h),
-		containerd.WithSchema1Conversion)
+		containerd.WithSchema1Conversion) //nolint:staticcheck
 	stopProgress()
 	if err != nil {
 		log.G(ctx).WithError(err).WithField("ref", ref).Fatal("Failed to pull")
@@ -100,7 +101,7 @@ func main() {
 	if skipUnpack := os.Getenv("ECR_SKIP_UNPACK"); skipUnpack != "" {
 		return
 	}
-	snapshotter := containerd.DefaultSnapshotter
+	snapshotter := defaults.DefaultSnapshotter
 	if newSnapshotter := os.Getenv("CONTAINERD_SNAPSHOTTER"); newSnapshotter != "" {
 		snapshotter = newSnapshotter
 	}

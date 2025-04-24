@@ -28,8 +28,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/containerd/containerd/pkg/progress"
-	"github.com/containerd/containerd/remotes/docker"
+	"github.com/containerd/containerd/v2/core/remotes/docker"
+	"github.com/containerd/containerd/v2/pkg/progress"
 	units "github.com/docker/go-units"
 )
 

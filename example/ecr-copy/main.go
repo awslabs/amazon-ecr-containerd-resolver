@@ -21,9 +21,9 @@ import (
 	"strconv"
 
 	"github.com/awslabs/amazon-ecr-containerd-resolver/ecr"
-	"github.com/containerd/containerd"
-	"github.com/containerd/containerd/log"
-	"github.com/containerd/containerd/namespaces"
+	containerd "github.com/containerd/containerd/v2/client"
+	"github.com/containerd/containerd/v2/pkg/namespaces"
+	"github.com/containerd/log"
 	"github.com/sirupsen/logrus"
 )
 
