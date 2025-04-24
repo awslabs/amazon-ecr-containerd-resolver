@@ -20,8 +20,9 @@ import (
 	"fmt"
 
 	"github.com/awslabs/amazon-ecr-containerd-resolver/ecr"
-	"github.com/containerd/containerd"
-	"github.com/containerd/containerd/namespaces"
+
+	containerd "github.com/containerd/containerd/v2/client"
+	"github.com/containerd/containerd/v2/pkg/namespaces"
 )
 
 func ExampleNewResolver_pull() {
@@ -32,7 +33,7 @@ func ExampleNewResolver_pull() {
 		"ecr.aws/arn:aws:ecr:us-west-2:123456789012:repository/myrepository:mytag",
 		containerd.WithResolver(resolver),
 		containerd.WithPullUnpack,
-		containerd.WithSchema1Conversion)
+		containerd.WithSchema1Conversion) //nolint:staticcheck
 	fmt.Println(img.Name())
 }
 

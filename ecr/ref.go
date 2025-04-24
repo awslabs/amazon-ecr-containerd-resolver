@@ -25,7 +25,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/arn"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/service/ecr"
-	"github.com/containerd/containerd/reference"
+	"github.com/containerd/containerd/v2/pkg/reference"
 	"github.com/opencontainers/go-digest"
 )
 
@@ -211,6 +211,27 @@ func (spec ECRSpec) ImageID() *ecr.ImageIdentifier {
 
 // TagDigest returns the tag and/or digest specified by the reference
 func (spec ECRSpec) TagDigest() (string, digest.Digest) {
-	tag, digest := reference.SplitObject(spec.Object)
+	tag, digest := splitObject(spec.Object)
 	return strings.TrimSuffix(tag, "@"), digest
+}
+
+// splitObject provides two parts of the object spec, delimited by an "@"
+// symbol. It does not perform any validation on correctness of the values
+// returned, and it's the callers' responsibility to validate the result.
+//
+// If an "@" delimiter is found, it returns the part *including* the "@"
+// delimiter as "tag", and the part after the "@" as digest.
+//
+// The example below produces "docker.io/library/ubuntu:latest@" and
+// "sha256:deadbeef";
+//
+//	t, d := splitObject("docker.io/library/ubuntu:latest@sha256:deadbeef")
+//	fmt.Println(t) // docker.io/library/ubuntu:latest@
+//	fmt.Println(d) // sha256:deadbeef
+func splitObject(obj string) (tag string, dgst digest.Digest) {
+	if i := strings.Index(obj, "@"); i >= 0 {
+		// Offset by one so preserve the "@" in the tag returned.
+		return obj[:i+1], digest.Digest(obj[i+1:])
+	}
+	return obj, ""
 }
