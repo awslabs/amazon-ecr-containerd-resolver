@@ -21,8 +21,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ecr"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ecr"
+	"github.com/aws/aws-sdk-go-v2/service/ecr/types"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
@@ -100,7 +101,7 @@ func (p ecrPusher) checkManifestExistence(ctx context.Context, desc ocispec.Desc
 		return false, errors.New("ecr.pusher.manifest: unexpected nil image")
 	}
 
-	found := desc.Digest.String() == aws.StringValue(image.ImageId.ImageDigest)
+	found := desc.Digest.String() == aws.ToString(image.ImageId.ImageDigest)
 	return found, nil
 }
 
@@ -126,10 +127,10 @@ func (p ecrPusher) checkBlobExistence(ctx context.Context, desc ocispec.Descript
 	batchCheckLayerAvailabilityInput := &ecr.BatchCheckLayerAvailabilityInput{
 		RegistryId:     aws.String(p.ecrSpec.Registry()),
 		RepositoryName: aws.String(p.ecrSpec.Repository),
-		LayerDigests:   []*string{aws.String(desc.Digest.String())},
+		LayerDigests:   []string{desc.Digest.String()},
 	}
 
-	batchCheckLayerAvailabilityOutput, err := p.client.BatchCheckLayerAvailabilityWithContext(ctx, batchCheckLayerAvailabilityInput)
+	batchCheckLayerAvailabilityOutput, err := p.client.BatchCheckLayerAvailability(ctx, batchCheckLayerAvailabilityInput)
 	if err != nil {
 		log.G(ctx).WithError(err).Error("ecr.pusher.blob: failed to check availability")
 		return false, err
@@ -146,7 +147,7 @@ func (p ecrPusher) checkBlobExistence(ctx context.Context, desc ocispec.Descript
 	}
 
 	layer := batchCheckLayerAvailabilityOutput.Layers[0]
-	return aws.StringValue(layer.LayerAvailability) == ecr.LayerAvailabilityAvailable, nil
+	return layer.LayerAvailability == types.LayerAvailabilityAvailable, nil
 }
 
 func (p ecrPusher) markStatusExists(ctx context.Context, desc ocispec.Descriptor) string {

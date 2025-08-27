@@ -19,9 +19,9 @@ import (
 	"context"
 	"errors"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/ecr"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ecr"
+	"github.com/aws/aws-sdk-go-v2/service/ecr/types"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/reference"
@@ -51,25 +51,25 @@ type ecrBase struct {
 // See https://docs.aws.amazon.com/sdk-for-go/api/service/ecr/ecriface/ for the
 // full interface from the SDK.
 type ecrAPI interface {
-	BatchGetImageWithContext(aws.Context, *ecr.BatchGetImageInput, ...request.Option) (*ecr.BatchGetImageOutput, error)
-	GetDownloadUrlForLayerWithContext(aws.Context, *ecr.GetDownloadUrlForLayerInput, ...request.Option) (*ecr.GetDownloadUrlForLayerOutput, error)
-	BatchCheckLayerAvailabilityWithContext(aws.Context, *ecr.BatchCheckLayerAvailabilityInput, ...request.Option) (*ecr.BatchCheckLayerAvailabilityOutput, error)
-	InitiateLayerUpload(*ecr.InitiateLayerUploadInput) (*ecr.InitiateLayerUploadOutput, error)
-	UploadLayerPart(*ecr.UploadLayerPartInput) (*ecr.UploadLayerPartOutput, error)
-	CompleteLayerUpload(*ecr.CompleteLayerUploadInput) (*ecr.CompleteLayerUploadOutput, error)
-	PutImageWithContext(aws.Context, *ecr.PutImageInput, ...request.Option) (*ecr.PutImageOutput, error)
+	BatchGetImage(context.Context, *ecr.BatchGetImageInput, ...func(*ecr.Options)) (*ecr.BatchGetImageOutput, error)
+	GetDownloadUrlForLayer(context.Context, *ecr.GetDownloadUrlForLayerInput, ...func(*ecr.Options)) (*ecr.GetDownloadUrlForLayerOutput, error)
+	BatchCheckLayerAvailability(context.Context, *ecr.BatchCheckLayerAvailabilityInput, ...func(*ecr.Options)) (*ecr.BatchCheckLayerAvailabilityOutput, error)
+	InitiateLayerUpload(context.Context, *ecr.InitiateLayerUploadInput, ...func(*ecr.Options)) (*ecr.InitiateLayerUploadOutput, error)
+	UploadLayerPart(context.Context, *ecr.UploadLayerPartInput, ...func(*ecr.Options)) (*ecr.UploadLayerPartOutput, error)
+	CompleteLayerUpload(context.Context, *ecr.CompleteLayerUploadInput, ...func(*ecr.Options)) (*ecr.CompleteLayerUploadOutput, error)
+	PutImage(context.Context, *ecr.PutImageInput, ...func(*ecr.Options)) (*ecr.PutImageOutput, error)
 }
 
 // getImage fetches the reference's image from ECR.
-func (b *ecrBase) getImage(ctx context.Context) (*ecr.Image, error) {
+func (b *ecrBase) getImage(ctx context.Context) (*types.Image, error) {
 	return b.runGetImage(ctx, ecr.BatchGetImageInput{
-		ImageIds:           []*ecr.ImageIdentifier{b.ecrSpec.ImageID()},
-		AcceptedMediaTypes: aws.StringSlice(supportedImageMediaTypes),
+		ImageIds:           []types.ImageIdentifier{*b.ecrSpec.ImageID()},
+		AcceptedMediaTypes: supportedImageMediaTypes,
 	})
 }
 
 // getImageByDescriptor retrieves an image from ECR for a given OCI descriptor.
-func (b *ecrBase) getImageByDescriptor(ctx context.Context, desc ocispec.Descriptor) (*ecr.Image, error) {
+func (b *ecrBase) getImageByDescriptor(ctx context.Context, desc ocispec.Descriptor) (*types.Image, error) {
 	// If the reference includes both a digest & tag for an image and that
 	// digest matches the descriptor's digest then both are specified when
 	// requesting an image from ECR. Mutation of the image that pushes an image
@@ -90,7 +90,7 @@ func (b *ecrBase) getImageByDescriptor(ctx context.Context, desc ocispec.Descrip
 	//
 	// https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-tag-mutability.html
 	//
-	ident := &ecr.ImageIdentifier{ImageDigest: aws.String(desc.Digest.String())}
+	ident := types.ImageIdentifier{ImageDigest: aws.String(desc.Digest.String())}
 	if b.ecrSpec.Spec().Digest() == desc.Digest {
 		if tag, _ := b.ecrSpec.TagDigest(); tag != "" {
 			ident.ImageTag = aws.String(tag)
@@ -98,21 +98,21 @@ func (b *ecrBase) getImageByDescriptor(ctx context.Context, desc ocispec.Descrip
 	}
 
 	input := ecr.BatchGetImageInput{
-		ImageIds: []*ecr.ImageIdentifier{ident},
+		ImageIds: []types.ImageIdentifier{ident},
 	}
 
 	// Request exact mediaType when known.
 	if desc.MediaType != "" {
-		input.AcceptedMediaTypes = []*string{aws.String(desc.MediaType)}
+		input.AcceptedMediaTypes = []string{desc.MediaType}
 	} else {
-		input.AcceptedMediaTypes = aws.StringSlice(supportedImageMediaTypes)
+		input.AcceptedMediaTypes = supportedImageMediaTypes
 	}
 
 	return b.runGetImage(ctx, input)
 }
 
 // runGetImage submits and handles the response for requests of ECR images.
-func (b *ecrBase) runGetImage(ctx context.Context, batchGetImageInput ecr.BatchGetImageInput) (*ecr.Image, error) {
+func (b *ecrBase) runGetImage(ctx context.Context, batchGetImageInput ecr.BatchGetImageInput) (*types.Image, error) {
 	// Allow only a single image to be fetched at a time.
 	if len(batchGetImageInput.ImageIds) != 1 {
 		return nil, errGetImageUnhandled
@@ -123,7 +123,7 @@ func (b *ecrBase) runGetImage(ctx context.Context, batchGetImageInput ecr.BatchG
 
 	log.G(ctx).WithField("batchGetImageInput", batchGetImageInput).Trace("ecr.base.image: requesting images")
 
-	batchGetImageOutput, err := b.client.BatchGetImageWithContext(ctx, &batchGetImageInput)
+	batchGetImageOutput, err := b.client.BatchGetImage(ctx, &batchGetImageInput)
 	if err != nil {
 		log.G(ctx).WithError(err).Error("ecr.base.image: failed to get image")
 		return nil, err
@@ -135,20 +135,20 @@ func (b *ecrBase) runGetImage(ctx context.Context, batchGetImageInput ecr.BatchG
 	// queried for.
 	if len(batchGetImageOutput.Failures) > 0 {
 		failure := batchGetImageOutput.Failures[0]
-		switch aws.StringValue(failure.FailureCode) {
+		switch failure.FailureCode {
 		// Requested image with a corresponding tag and digest does not exist.
 		// This failure will generally occur when pushing an updated (or new)
 		// image with a tag.
-		case ecr.ImageFailureCodeImageTagDoesNotMatchDigest:
+		case types.ImageFailureCodeImageTagDoesNotMatchDigest:
 			log.G(ctx).WithField("failure", failure).Debug("ecr.base.image: no matching image with specified digest")
 			return nil, errImageNotFound
 		// Requested image doesn't resolve to a known image. A new image will
 		// result in an ImageNotFound error when checked before push.
-		case ecr.ImageFailureCodeImageNotFound:
+		case types.ImageFailureCodeImageNotFound:
 			log.G(ctx).WithField("failure", failure).Debug("ecr.base.image: no image found")
 			return nil, errImageNotFound
 		// Requested image identifiers are invalid.
-		case ecr.ImageFailureCodeInvalidImageDigest, ecr.ImageFailureCodeInvalidImageTag:
+		case types.ImageFailureCodeInvalidImageDigest, types.ImageFailureCodeInvalidImageTag:
 			log.G(ctx).WithField("failure", failure).Error("ecr.base.image: invalid image identifier")
 			return nil, reference.ErrInvalid
 		// Unhandled failure reported for image request made.
@@ -158,5 +158,5 @@ func (b *ecrBase) runGetImage(ctx context.Context, batchGetImageInput ecr.BatchG
 		}
 	}
 
-	return batchGetImageOutput.Images[0], nil
+	return &batchGetImageOutput.Images[0], nil
 }

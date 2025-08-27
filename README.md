@@ -85,6 +85,9 @@ This support is backed by the [htcat library](https://github.com/htcat/htcat).
 The Amazon ECR containerd resolver manages its dependencies with [Go modules](https://github.com/golang/go/wiki/Modules) and requires Go 1.23 or greater.
 If you have Go 1.23 or greater installed, you can build the example programs with `make`.
 
+### AWS Go SDK v2 Upgrade Note
+The upgrade to AWS Go SDK v2 resulted in the removal of `WithSession` resolver option. Future integrations should use `WithConfig` instead.
+
 ## License
 
 The Amazon ECR containerd resolver is licensed under the Apache 2.0 License.

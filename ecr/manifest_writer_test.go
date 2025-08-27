@@ -19,10 +19,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/arn"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/ecr"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
+	"github.com/aws/aws-sdk-go-v2/service/ecr"
+	"github.com/aws/aws-sdk-go-v2/service/ecr/types"
 	"github.com/awslabs/amazon-ecr-containerd-resolver/ecr/internal/testdata"
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
@@ -64,23 +64,23 @@ func TestManifestWriterCommit(t *testing.T) {
 
 	callCount := 0
 	client := &fakeECRClient{
-		PutImageFn: func(_ aws.Context, input *ecr.PutImageInput, _ ...request.Option) (*ecr.PutImageOutput, error) {
+		PutImageFn: func(_ context.Context, input *ecr.PutImageInput, _ ...func(*ecr.Options)) (*ecr.PutImageOutput, error) {
 			callCount++
 
-			assert.Equal(t, registry, aws.StringValue(input.RegistryId))
-			assert.Equal(t, repository, aws.StringValue(input.RepositoryName))
-			assert.Equal(t, imageTag, aws.StringValue(input.ImageTag),
+			assert.Equal(t, registry, aws.ToString(input.RegistryId))
+			assert.Equal(t, repository, aws.ToString(input.RepositoryName))
+			assert.Equal(t, imageTag, aws.ToString(input.ImageTag),
 				"should use image ref's tag")
-			assert.Equal(t, manifestContent, aws.StringValue(input.ImageManifest),
+			assert.Equal(t, manifestContent, aws.ToString(input.ImageManifest),
 				"should provide manifest's body")
-			assert.Equal(t, imageDesc.MediaType, aws.StringValue(input.ImageManifestMediaType),
+			assert.Equal(t, imageDesc.MediaType, aws.ToString(input.ImageManifestMediaType),
 				"should include manifest's mediaType in API input") // regardless of it being in the manifest body
-			assert.Equal(t, imageDesc.Digest.String(), aws.StringValue(input.ImageDigest),
+			assert.Equal(t, imageDesc.Digest.String(), aws.ToString(input.ImageDigest),
 				"should include manifest's digest in API input")
 
 			return &ecr.PutImageOutput{
-				Image: &ecr.Image{
-					ImageId: &ecr.ImageIdentifier{
+				Image: &types.Image{
+					ImageId: &types.ImageIdentifier{
 						ImageTag:    input.ImageTag,
 						ImageDigest: aws.String(imageDigest.String()),
 					},
@@ -146,21 +146,21 @@ func TestManifestWriterNoTagCommit(t *testing.T) {
 
 	callCount := 0
 	client := &fakeECRClient{
-		PutImageFn: func(_ aws.Context, input *ecr.PutImageInput, _ ...request.Option) (*ecr.PutImageOutput, error) {
+		PutImageFn: func(_ context.Context, input *ecr.PutImageInput, _ ...func(*ecr.Options)) (*ecr.PutImageOutput, error) {
 			callCount++
-			assert.Equal(t, registry, aws.StringValue(input.RegistryId))
-			assert.Equal(t, repository, aws.StringValue(input.RepositoryName))
-			assert.NotEqual(t, aws.StringValue(input.ImageTag), imageTag, "should not include tag when pushing non-root descriptor")
-			assert.Equal(t, memberManifestContent, aws.StringValue(input.ImageManifest),
+			assert.Equal(t, registry, aws.ToString(input.RegistryId))
+			assert.Equal(t, repository, aws.ToString(input.RepositoryName))
+			assert.NotEqual(t, aws.ToString(input.ImageTag), imageTag, "should not include tag when pushing non-root descriptor")
+			assert.Equal(t, memberManifestContent, aws.ToString(input.ImageManifest),
 				"should provide manifest's body")
-			assert.Equal(t, memberDesc.MediaType, aws.StringValue(input.ImageManifestMediaType),
+			assert.Equal(t, memberDesc.MediaType, aws.ToString(input.ImageManifestMediaType),
 				"should include manifest's mediaType in API input") // regardless of it being in the manifest body
-			assert.Equal(t, memberDesc.Digest.String(), aws.StringValue(input.ImageDigest),
+			assert.Equal(t, memberDesc.Digest.String(), aws.ToString(input.ImageDigest),
 				"should include manifest's digest in API input")
 
 			return &ecr.PutImageOutput{
-				Image: &ecr.Image{
-					ImageId: &ecr.ImageIdentifier{
+				Image: &types.Image{
+					ImageId: &types.ImageIdentifier{
 						// Image will have the matching digest.
 						ImageDigest: aws.String(memberDesc.Digest.String()),
 					},

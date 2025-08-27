@@ -20,10 +20,10 @@ import (
 	"io"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/arn"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/ecr"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
+	"github.com/aws/aws-sdk-go-v2/service/ecr"
+	"github.com/aws/aws-sdk-go-v2/service/ecr/types"
 	"github.com/awslabs/amazon-ecr-containerd-resolver/ecr/internal/testdata"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/opencontainers/go-digest"
@@ -40,32 +40,32 @@ func TestLayerWriter(t *testing.T) {
 	uploadID := "upload"
 	initiateLayerUploadCount, uploadLayerPartCount, completeLayerUploadCount := 0, 0, 0
 	client := &fakeECRClient{
-		InitiateLayerUploadFn: func(input *ecr.InitiateLayerUploadInput) (*ecr.InitiateLayerUploadOutput, error) {
+		InitiateLayerUploadFn: func(ctx context.Context, input *ecr.InitiateLayerUploadInput, opts ...func(*ecr.Options)) (*ecr.InitiateLayerUploadOutput, error) {
 			initiateLayerUploadCount++
-			assert.Equal(t, registry, aws.StringValue(input.RegistryId))
-			assert.Equal(t, repository, aws.StringValue(input.RepositoryName))
+			assert.Equal(t, registry, aws.ToString(input.RegistryId))
+			assert.Equal(t, repository, aws.ToString(input.RepositoryName))
 			return &ecr.InitiateLayerUploadOutput{
 				UploadId: aws.String(uploadID),
 				// use single-byte upload size so we can test each byte
 				PartSize: aws.Int64(1),
 			}, nil
 		},
-		UploadLayerPartFn: func(input *ecr.UploadLayerPartInput) (*ecr.UploadLayerPartOutput, error) {
-			assert.Equal(t, registry, aws.StringValue(input.RegistryId))
-			assert.Equal(t, repository, aws.StringValue(input.RepositoryName))
-			assert.Equal(t, uploadID, aws.StringValue(input.UploadId))
-			assert.Equal(t, int64(uploadLayerPartCount), aws.Int64Value(input.PartFirstByte), "first byte")
-			assert.Equal(t, int64(uploadLayerPartCount), aws.Int64Value(input.PartLastByte), "last byte")
+		UploadLayerPartFn: func(ctx context.Context, input *ecr.UploadLayerPartInput, opts ...func(*ecr.Options)) (*ecr.UploadLayerPartOutput, error) {
+			assert.Equal(t, registry, aws.ToString(input.RegistryId))
+			assert.Equal(t, repository, aws.ToString(input.RepositoryName))
+			assert.Equal(t, uploadID, aws.ToString(input.UploadId))
+			assert.Equal(t, int64(uploadLayerPartCount), aws.ToInt64(input.PartFirstByte), "first byte")
+			assert.Equal(t, int64(uploadLayerPartCount), aws.ToInt64(input.PartLastByte), "last byte")
 			assert.Len(t, input.LayerPartBlob, 1, "only one byte is expected")
 			assert.Equal(t, layerData[uploadLayerPartCount], input.LayerPartBlob[0], "invalid layer blob data")
 			uploadLayerPartCount++
 			return nil, nil
 		},
-		CompleteLayerUploadFn: func(input *ecr.CompleteLayerUploadInput) (*ecr.CompleteLayerUploadOutput, error) {
+		CompleteLayerUploadFn: func(ctx context.Context, input *ecr.CompleteLayerUploadInput, opts ...func(*ecr.Options)) (*ecr.CompleteLayerUploadOutput, error) {
 			completeLayerUploadCount++
-			assert.Equal(t, registry, aws.StringValue(input.RegistryId))
-			assert.Equal(t, repository, aws.StringValue(input.RepositoryName))
-			assert.Equal(t, uploadID, aws.StringValue(input.UploadId))
+			assert.Equal(t, registry, aws.ToString(input.RegistryId))
+			assert.Equal(t, repository, aws.ToString(input.RepositoryName))
+			assert.Equal(t, uploadID, aws.ToString(input.UploadId))
 			assert.Equal(t, len(layerData), uploadLayerPartCount)
 			return &ecr.CompleteLayerUploadOutput{
 				LayerDigest: aws.String(layerDigest),
@@ -108,24 +108,15 @@ func TestLayerWriter(t *testing.T) {
 	assert.Equal(t, 1, completeLayerUploadCount)
 }
 
-type layerAlreadyExistsError struct{}
-
-func (l *layerAlreadyExistsError) Code() string    { return "LayerAlreadyExistsException" }
-func (l *layerAlreadyExistsError) Error() string   { return l.Code() }
-func (l *layerAlreadyExistsError) Message() string { return l.Code() }
-func (l *layerAlreadyExistsError) OrigErr() error  { return l }
-
-var _ awserr.Error = (*layerAlreadyExistsError)(nil)
-
 func TestLayerWriterCommitExists(t *testing.T) {
 	registry := "registry"
 	repository := "repository"
 	layerDigest := "sha256:digest"
 	callCount := 0
 	client := &fakeECRClient{
-		CompleteLayerUploadFn: func(_ *ecr.CompleteLayerUploadInput) (*ecr.CompleteLayerUploadOutput, error) {
+		CompleteLayerUploadFn: func(ctx context.Context, _ *ecr.CompleteLayerUploadInput, opts ...func(*ecr.Options)) (*ecr.CompleteLayerUploadOutput, error) {
 			callCount++
-			return nil, &layerAlreadyExistsError{}
+			return nil, &types.LayerAlreadyExistsException{}
 		},
 	}
 

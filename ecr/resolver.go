@@ -23,10 +23,10 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ecr"
-	ecrsdk "github.com/aws/aws-sdk-go/service/ecr"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/ecr"
+	"github.com/aws/aws-sdk-go-v2/service/ecr/types"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/log"
@@ -43,7 +43,7 @@ var (
 )
 
 type ecrResolver struct {
-	session                  *session.Session
+	cfg                      aws.Config
 	clients                  map[string]ecrAPI
 	clientsLock              sync.Mutex
 	tracker                  docker.StatusTracker
@@ -57,9 +57,8 @@ type ResolverOption func(*ResolverOptions) error
 
 // ResolverOptions represents available options for configuring the ECR Resolver
 type ResolverOptions struct {
-	// Session is used for configuring the ECR client.  If not specified, a
-	// generic session is used.
-	Session *session.Session
+	// Config is used for configuring the ECR client. If not specified, a generic config is used.
+	Config *aws.Config
 	// Tracker is used to track uploads to ECR.  If not specified, an in-memory
 	// tracker is used instead.
 	Tracker docker.StatusTracker
@@ -72,10 +71,10 @@ type ResolverOptions struct {
 	HTTPClient *http.Client
 }
 
-// WithSession is a ResolverOption to use a specific AWS session.Session
-func WithSession(session *session.Session) ResolverOption {
+// WithConfig is a ResolverOption to use a specific AWS config
+func WithConfig(cfg aws.Config) ResolverOption {
 	return func(options *ResolverOptions) error {
-		options.Session = session
+		options.Config = &cfg
 		return nil
 	}
 }
@@ -121,12 +120,15 @@ func NewResolver(options ...ResolverOption) (remotes.Resolver, error) {
 			return nil, err
 		}
 	}
-	if resolverOptions.Session == nil {
-		awsSession, err := session.NewSession()
+	var cfg aws.Config
+	var err error
+	if resolverOptions.Config == nil {
+		cfg, err = config.LoadDefaultConfig(context.Background())
 		if err != nil {
 			return nil, err
 		}
-		resolverOptions.Session = awsSession
+	} else {
+		cfg = *resolverOptions.Config
 	}
 	if resolverOptions.Tracker == nil {
 		resolverOptions.Tracker = docker.NewInMemoryTracker()
@@ -137,7 +139,7 @@ func NewResolver(options ...ResolverOption) (remotes.Resolver, error) {
 	}
 
 	return &ecrResolver{
-		session:                  resolverOptions.Session,
+		cfg:                      cfg,
 		clients:                  map[string]ecrAPI{},
 		tracker:                  resolverOptions.Tracker,
 		layerDownloadParallelism: resolverOptions.LayerDownloadParallelism,
@@ -162,13 +164,13 @@ func (r *ecrResolver) Resolve(ctx context.Context, ref string) (string, ocispec.
 	batchGetImageInput := &ecr.BatchGetImageInput{
 		RegistryId:         aws.String(ecrSpec.Registry()),
 		RepositoryName:     aws.String(ecrSpec.Repository),
-		ImageIds:           []*ecr.ImageIdentifier{ecrSpec.ImageID()},
-		AcceptedMediaTypes: aws.StringSlice(supportedImageMediaTypes),
+		ImageIds:           []types.ImageIdentifier{*ecrSpec.ImageID()},
+		AcceptedMediaTypes: supportedImageMediaTypes,
 	}
 
 	client := r.getClient(ecrSpec.Region())
 
-	batchGetImageOutput, err := client.BatchGetImageWithContext(ctx, batchGetImageInput)
+	batchGetImageOutput, err := client.BatchGetImage(ctx, batchGetImageInput)
 	if err != nil {
 		log.G(ctx).
 			WithField("ref", ref).
@@ -186,9 +188,9 @@ func (r *ecrResolver) Resolve(ctx context.Context, ref string) (string, ocispec.
 	}
 	ecrImage := batchGetImageOutput.Images[0]
 
-	mediaType := aws.StringValue(ecrImage.ImageManifestMediaType)
+	mediaType := aws.ToString(ecrImage.ImageManifestMediaType)
 	if mediaType == "" {
-		manifestBody := aws.StringValue(ecrImage.ImageManifest)
+		manifestBody := aws.ToString(ecrImage.ImageManifest)
 		log.G(ctx).
 			WithField("ref", ref).
 			WithField("manifest", manifestBody).
@@ -204,7 +206,7 @@ func (r *ecrResolver) Resolve(ctx context.Context, ref string) (string, ocispec.
 		Debug("ecr.resolver.resolve")
 	// check resolved image's mediaType, it should be one of the specified in
 	// the request.
-	for i, accepted := range aws.StringValueSlice(batchGetImageInput.AcceptedMediaTypes) {
+	for i, accepted := range batchGetImageInput.AcceptedMediaTypes {
 		if mediaType == accepted {
 			break
 		}
@@ -217,9 +219,9 @@ func (r *ecrResolver) Resolve(ctx context.Context, ref string) (string, ocispec.
 	}
 
 	desc := ocispec.Descriptor{
-		Digest:    digest.Digest(aws.StringValue(ecrImage.ImageId.ImageDigest)),
+		Digest:    digest.Digest(*ecrImage.ImageId.ImageDigest),
 		MediaType: mediaType,
-		Size:      int64(len(aws.StringValue(ecrImage.ImageManifest))),
+		Size:      int64(len(aws.ToString(ecrImage.ImageManifest))),
 	}
 	// assert matching digest if the provided ref includes one.
 	if expectedDigest := ecrSpec.Spec().Digest().String(); expectedDigest != "" &&
@@ -234,9 +236,9 @@ func (r *ecrResolver) getClient(region string) ecrAPI {
 	r.clientsLock.Lock()
 	defer r.clientsLock.Unlock()
 	if _, ok := r.clients[region]; !ok {
-		r.clients[region] = ecrsdk.New(r.session, &aws.Config{
-			Region:     aws.String(region),
-			HTTPClient: r.httpClient})
+		cfg := r.cfg
+		cfg.Region = region
+		r.clients[region] = ecr.NewFromConfig(cfg)
 	}
 	return r.clients[region]
 }

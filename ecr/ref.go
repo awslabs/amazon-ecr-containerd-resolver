@@ -21,10 +21,10 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/arn"
-	"github.com/aws/aws-sdk-go/aws/endpoints"
-	"github.com/aws/aws-sdk-go/service/ecr"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
+	"github.com/aws/aws-sdk-go-v2/service/ecr/types"
+	"github.com/awslabs/amazon-ecr-containerd-resolver/ecr/internal/awsrulesfn"
 	"github.com/containerd/containerd/reference"
 	"github.com/opencontainers/go-digest"
 )
@@ -80,10 +80,7 @@ func ParseImageURI(input string) (ECRSpec, error) {
 	region := matches[2]
 
 	// Get the correct partition given its region
-	partition, found := endpoints.PartitionForRegion(endpoints.DefaultPartitions(), region)
-	if !found {
-		return ECRSpec{}, errInvalidImageURI
-	}
+	partition := awsrulesfn.GetPartition(region)
 
 	// Need to include the full repository path and the imageID (e.g. /eks/image-name:tag)
 	tokens := strings.SplitN(input, "/", 2)
@@ -126,7 +123,7 @@ func ParseImageURI(input string) (ECRSpec, error) {
 		Repository: strings.TrimPrefix(ref.Locator, repositoryPrefix),
 		Object:     ref.Object,
 		arn: arn.ARN{
-			Partition: partition.ID(),
+			Partition: partition.Name,
 			Service:   arnServiceID,
 			Region:    region,
 			AccountID: account,
@@ -197,8 +194,8 @@ func (spec ECRSpec) Spec() reference.Spec {
 }
 
 // ImageID returns an ecr.ImageIdentifier suitable for using in calls to ECR
-func (spec ECRSpec) ImageID() *ecr.ImageIdentifier {
-	imageID := ecr.ImageIdentifier{}
+func (spec ECRSpec) ImageID() *types.ImageIdentifier {
+	imageID := types.ImageIdentifier{}
 	tag, digest := spec.TagDigest()
 	if tag != "" {
 		imageID.ImageTag = aws.String(tag)

@@ -27,10 +27,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/arn"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/ecr"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
+	"github.com/aws/aws-sdk-go-v2/service/ecr"
+	"github.com/aws/aws-sdk-go-v2/service/ecr/types"
 	"github.com/awslabs/amazon-ecr-containerd-resolver/ecr/internal/testdata"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
@@ -125,15 +125,15 @@ func TestFetchManifest(t *testing.T) {
 	for _, mediaType := range supportedImageMediaTypes {
 		// Test variants of Object (tag, digest, and combination).
 		for _, testObject := range []struct {
-			ImageIdentifier ecr.ImageIdentifier
+			ImageIdentifier types.ImageIdentifier
 			Object          string
 		}{
 			// Tag alone - used on first get image.
-			{Object: imageTag, ImageIdentifier: ecr.ImageIdentifier{ImageTag: aws.String(imageTag)}},
+			{Object: imageTag, ImageIdentifier: types.ImageIdentifier{ImageTag: aws.String(imageTag)}},
 			// Tag and digest assertive fetch
-			{Object: imageTagDigest, ImageIdentifier: ecr.ImageIdentifier{ImageTag: aws.String(imageTag), ImageDigest: aws.String(imageDigest)}},
+			{Object: imageTagDigest, ImageIdentifier: types.ImageIdentifier{ImageTag: aws.String(imageTag), ImageDigest: aws.String(imageDigest)}},
 			// Digest fetch
-			{Object: "@" + imageDigest, ImageIdentifier: ecr.ImageIdentifier{ImageDigest: aws.String(imageDigest)}},
+			{Object: "@" + imageDigest, ImageIdentifier: types.ImageIdentifier{ImageDigest: aws.String(imageDigest)}},
 		} {
 			fakeClient := &fakeECRClient{}
 			fetcher := &ecrFetcher{
@@ -152,21 +152,21 @@ func TestFetchManifest(t *testing.T) {
 				MediaType: mediaType,
 			}
 			if testObject.ImageIdentifier.ImageDigest != nil {
-				desc.Digest = digest.Digest(aws.StringValue(testObject.ImageIdentifier.ImageDigest))
+				desc.Digest = digest.Digest(aws.ToString(testObject.ImageIdentifier.ImageDigest))
 			}
 
 			t.Run(mediaType+"_"+testObject.Object, func(t *testing.T) {
 				callCount := 0
-				fakeClient.BatchGetImageFn = func(_ aws.Context, input *ecr.BatchGetImageInput, _ ...request.Option) (*ecr.BatchGetImageOutput, error) {
+				fakeClient.BatchGetImageFn = func(_ context.Context, input *ecr.BatchGetImageInput, _ ...func(*ecr.Options)) (*ecr.BatchGetImageOutput, error) {
 					callCount++
-					assert.Equal(t, registry, aws.StringValue(input.RegistryId))
-					assert.Equal(t, repository, aws.StringValue(input.RepositoryName))
+					assert.Equal(t, registry, aws.ToString(input.RegistryId))
+					assert.Equal(t, repository, aws.ToString(input.RepositoryName))
 
-					assert.ElementsMatch(t, []*ecr.ImageIdentifier{&testObject.ImageIdentifier}, input.ImageIds)
+					assert.ElementsMatch(t, []types.ImageIdentifier{testObject.ImageIdentifier}, input.ImageIds)
 
 					// Fetching populated descriptors uses a narrower requested
 					// content type.
-					requestedTypes := aws.StringValueSlice(input.AcceptedMediaTypes)
+					requestedTypes := input.AcceptedMediaTypes
 					t.Logf("requestedTypes: %q", requestedTypes)
 					if testObject.ImageIdentifier.ImageDigest != nil {
 						expectedTypes := []string{desc.MediaType}
@@ -181,7 +181,7 @@ func TestFetchManifest(t *testing.T) {
 					}
 
 					return &ecr.BatchGetImageOutput{
-						Images: []*ecr.Image{{ImageManifest: aws.String(imageManifest)}},
+						Images: []types.Image{{ImageManifest: aws.String(imageManifest)}},
 					}, nil
 				}
 
@@ -202,7 +202,7 @@ func TestFetchManifestAPIError(t *testing.T) {
 	mediaType := ocispec.MediaTypeImageManifest
 
 	fakeClient := &fakeECRClient{
-		BatchGetImageFn: func(aws.Context, *ecr.BatchGetImageInput, ...request.Option) (*ecr.BatchGetImageOutput, error) {
+		BatchGetImageFn: func(context.Context, *ecr.BatchGetImageInput, ...func(*ecr.Options)) (*ecr.BatchGetImageOutput, error) {
 			return nil, errors.New("expected")
 		},
 	}
@@ -222,10 +222,10 @@ func TestFetchManifestNotFound(t *testing.T) {
 	mediaType := ocispec.MediaTypeImageManifest
 
 	fakeClient := &fakeECRClient{
-		BatchGetImageFn: func(aws.Context, *ecr.BatchGetImageInput, ...request.Option) (*ecr.BatchGetImageOutput, error) {
+		BatchGetImageFn: func(context.Context, *ecr.BatchGetImageInput, ...func(*ecr.Options)) (*ecr.BatchGetImageOutput, error) {
 			return &ecr.BatchGetImageOutput{
-				Failures: []*ecr.ImageFailure{
-					{FailureCode: aws.String(ecr.ImageFailureCodeImageNotFound)},
+				Failures: []types.ImageFailure{
+					{FailureCode: types.ImageFailureCodeImageNotFound},
 				},
 			}, nil
 		},
@@ -275,11 +275,11 @@ func TestFetchLayer(t *testing.T) {
 	} {
 		t.Run(mediaType, func(t *testing.T) {
 			callCount := 0
-			fakeClient.GetDownloadUrlForLayerFn = func(_ aws.Context, input *ecr.GetDownloadUrlForLayerInput, _ ...request.Option) (*ecr.GetDownloadUrlForLayerOutput, error) {
+			fakeClient.GetDownloadUrlForLayerFn = func(_ context.Context, input *ecr.GetDownloadUrlForLayerInput, _ ...func(*ecr.Options)) (*ecr.GetDownloadUrlForLayerOutput, error) {
 				callCount++
-				assert.Equal(t, registry, aws.StringValue(input.RegistryId))
-				assert.Equal(t, repository, aws.StringValue(input.RepositoryName))
-				assert.Equal(t, layerDigest, aws.StringValue(input.LayerDigest))
+				assert.Equal(t, registry, aws.ToString(input.RegistryId))
+				assert.Equal(t, repository, aws.ToString(input.RepositoryName))
+				assert.Equal(t, layerDigest, aws.ToString(input.LayerDigest))
 				return &ecr.GetDownloadUrlForLayerOutput{DownloadUrl: aws.String(ts.URL)}, nil
 			}
 			desc := ocispec.Descriptor{
@@ -299,7 +299,7 @@ func TestFetchLayer(t *testing.T) {
 
 func TestFetchLayerAPIError(t *testing.T) {
 	fakeClient := &fakeECRClient{
-		GetDownloadUrlForLayerFn: func(aws.Context, *ecr.GetDownloadUrlForLayerInput, ...request.Option) (*ecr.GetDownloadUrlForLayerOutput, error) {
+		GetDownloadUrlForLayerFn: func(context.Context, *ecr.GetDownloadUrlForLayerInput, ...func(*ecr.Options)) (*ecr.GetDownloadUrlForLayerOutput, error) {
 			return nil, errors.New("expected")
 		},
 	}
@@ -348,11 +348,11 @@ func TestFetchLayerHtcat(t *testing.T) {
 	defer ts.Close()
 
 	downloadURLCallCount := 0
-	fakeClient.GetDownloadUrlForLayerFn = func(_ aws.Context, input *ecr.GetDownloadUrlForLayerInput, _ ...request.Option) (*ecr.GetDownloadUrlForLayerOutput, error) {
+	fakeClient.GetDownloadUrlForLayerFn = func(_ context.Context, input *ecr.GetDownloadUrlForLayerInput, _ ...func(*ecr.Options)) (*ecr.GetDownloadUrlForLayerOutput, error) {
 		downloadURLCallCount++
-		assert.Equal(t, registry, aws.StringValue(input.RegistryId))
-		assert.Equal(t, repository, aws.StringValue(input.RepositoryName))
-		assert.Equal(t, layerDigest, aws.StringValue(input.LayerDigest))
+		assert.Equal(t, registry, aws.ToString(input.RegistryId))
+		assert.Equal(t, repository, aws.ToString(input.RepositoryName))
+		assert.Equal(t, layerDigest, aws.ToString(input.LayerDigest))
 		return &ecr.GetDownloadUrlForLayerOutput{DownloadUrl: aws.String(ts.URL)}, nil
 	}
 	desc := ocispec.Descriptor{

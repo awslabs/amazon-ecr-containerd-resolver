@@ -20,9 +20,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/arn"
-	"github.com/aws/aws-sdk-go/service/ecr"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
+	"github.com/aws/aws-sdk-go-v2/service/ecr/types"
 	"github.com/awslabs/amazon-ecr-containerd-resolver/ecr/internal/testdata"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -133,14 +133,14 @@ func TestImageID(t *testing.T) {
 	cases := []struct {
 		name    string
 		spec    ECRSpec
-		imageID *ecr.ImageIdentifier
+		imageID *types.ImageIdentifier
 	}{
 		{
 			name: "blank",
 			spec: ECRSpec{
 				Repository: "foo/bar",
 			},
-			imageID: &ecr.ImageIdentifier{},
+			imageID: &types.ImageIdentifier{},
 		},
 		{
 			name: "tag",
@@ -148,7 +148,7 @@ func TestImageID(t *testing.T) {
 				Repository: "foo/bar",
 				Object:     "latest",
 			},
-			imageID: &ecr.ImageIdentifier{
+			imageID: &types.ImageIdentifier{
 				ImageTag: aws.String("latest"),
 			},
 		},
@@ -158,7 +158,7 @@ func TestImageID(t *testing.T) {
 				Repository: "foo/bar",
 				Object:     "@" + testdata.ImageDigest.String(),
 			},
-			imageID: &ecr.ImageIdentifier{
+			imageID: &types.ImageIdentifier{
 				ImageDigest: aws.String(testdata.ImageDigest.String()),
 			},
 		},
@@ -168,7 +168,7 @@ func TestImageID(t *testing.T) {
 				Repository: "foo/bar",
 				Object:     "latest@" + testdata.ImageDigest.String(),
 			},
-			imageID: &ecr.ImageIdentifier{
+			imageID: &types.ImageIdentifier{
 				ImageTag:    aws.String("latest"),
 				ImageDigest: aws.String(testdata.ImageDigest.String()),
 			},
