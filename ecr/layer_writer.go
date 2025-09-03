@@ -22,9 +22,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/ecr"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ecr"
+	"github.com/aws/aws-sdk-go-v2/service/ecr/types"
 	"github.com/awslabs/amazon-ecr-containerd-resolver/ecr/stream"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/log"
@@ -69,13 +69,13 @@ func newLayerWriter(base *ecrBase, tracker docker.StatusTracker, ref string, des
 		RegistryId:     aws.String(base.ecrSpec.Registry()),
 		RepositoryName: aws.String(base.ecrSpec.Repository),
 	}
-	initiateLayerUploadOutput, err := base.client.InitiateLayerUpload(initiateLayerUploadInput)
+	initiateLayerUploadOutput, err := base.client.InitiateLayerUpload(ctx, initiateLayerUploadInput)
 	if err != nil {
 		cancel()
 		return nil, err
 	}
-	lw.uploadID = aws.StringValue(initiateLayerUploadOutput.UploadId)
-	partSize := aws.Int64Value(initiateLayerUploadOutput.PartSize)
+	lw.uploadID = aws.ToString(initiateLayerUploadOutput.UploadId)
+	partSize := aws.ToInt64(initiateLayerUploadOutput.PartSize)
 	log.G(ctx).
 		WithField("digest", desc.Digest.String()).
 		WithField("uploadID", lw.uploadID).
@@ -107,7 +107,7 @@ func newLayerWriter(base *ecrBase, tracker docker.StatusTracker, ref string, des
 					LayerPartBlob:  layerChunk.Bytes,
 				}
 
-				_, err := base.client.UploadLayerPart(uploadLayerPartInput)
+				_, err := base.client.UploadLayerPart(ctx, uploadLayerPartInput)
 				log.G(ctx).
 					WithField("digest", desc.Digest.String()).
 					WithField("part", layerChunk.Part).
@@ -173,25 +173,24 @@ func (lw *layerWriter) Commit(ctx context.Context, size int64, expected digest.D
 		RegistryId:     aws.String(lw.base.ecrSpec.Registry()),
 		RepositoryName: aws.String(lw.base.ecrSpec.Repository),
 		UploadId:       aws.String(lw.uploadID),
-		LayerDigests:   []*string{aws.String(expected.String())},
+		LayerDigests:   []string{expected.String()},
 	}
 
-	completeLayerUploadOutput, err := lw.base.client.CompleteLayerUpload(completeLayerUploadInput)
+	completeLayerUploadOutput, err := lw.base.client.CompleteLayerUpload(ctx, completeLayerUploadInput)
 	if err != nil {
 		// If the layer that is being uploaded already exists then return successfully instead of failing. Unfortunately
 		// in this case we do not get the digest back from ECR, but if the client-provided digest starts with a
 		// "sha256:" then the ECR has validated that the digest provided matches ours. If the expected digest uses a
 		// different algorithm we have to fail as we do not know the digest ECR calculated and the expected digest
 		// has not been validated.
-		awsErr, ok := err.(awserr.Error)
-		if ok && awsErr.Code() == "LayerAlreadyExistsException" && strings.HasPrefix(expected.String(), "sha256:") {
+		var alreadyExists *types.LayerAlreadyExistsException
+		if errors.As(err, &alreadyExists) && strings.HasPrefix(expected.String(), "sha256:") {
 			log.G(lw.ctx).Debug("ecr.layer.commit: layer already exists")
 			return nil
-		} else {
-			return err
 		}
+		return err
 	}
-	actualDigest := aws.StringValue(completeLayerUploadOutput.LayerDigest)
+	actualDigest := aws.ToString(completeLayerUploadOutput.LayerDigest)
 	if actualDigest != expected.String() {
 		return errors.New("ecr: failed to validate uploaded digest")
 	}

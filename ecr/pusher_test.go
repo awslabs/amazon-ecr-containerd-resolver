@@ -21,10 +21,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/arn"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/ecr"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
+	"github.com/aws/aws-sdk-go-v2/service/ecr"
+	"github.com/aws/aws-sdk-go-v2/service/ecr/types"
 	"github.com/awslabs/amazon-ecr-containerd-resolver/ecr/internal/testdata"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
@@ -63,23 +63,23 @@ func TestPushManifestReturnsManifestWriter(t *testing.T) {
 
 			// Service mock
 
-			fakeClient.BatchGetImageFn = func(_ aws.Context, input *ecr.BatchGetImageInput, _ ...request.Option) (*ecr.BatchGetImageOutput, error) {
+			fakeClient.BatchGetImageFn = func(_ context.Context, input *ecr.BatchGetImageInput, _ ...func(*ecr.Options)) (*ecr.BatchGetImageOutput, error) {
 				callCount++
 
-				assert.Equal(t, registry, aws.StringValue(input.RegistryId))
-				assert.Equal(t, repository, aws.StringValue(input.RepositoryName))
+				assert.Equal(t, registry, aws.ToString(input.RegistryId))
+				assert.Equal(t, repository, aws.ToString(input.RepositoryName))
 
-				assert.ElementsMatch(t, []*ecr.ImageIdentifier{
+				assert.ElementsMatch(t, []types.ImageIdentifier{
 					{ImageDigest: aws.String(imageDigest)}},
 					input.ImageIds,
 					"should have requested image by its digest")
 
-				assert.Equal(t, []string{mediaType}, aws.StringValueSlice(input.AcceptedMediaTypes),
+				assert.Equal(t, []string{mediaType}, input.AcceptedMediaTypes,
 					"should have requested known mediaType")
 
 				return &ecr.BatchGetImageOutput{
-					Failures: []*ecr.ImageFailure{
-						{FailureCode: aws.String(ecr.ImageFailureCodeImageNotFound)},
+					Failures: []types.ImageFailure{
+						{FailureCode: types.ImageFailureCodeImageNotFound},
 					},
 				}, nil
 			}
@@ -118,10 +118,10 @@ func TestPushManifestAlreadyExists(t *testing.T) {
 	imageTag := "tag"
 	imageDigest := testdata.InsignificantDigest.String()
 	fakeClient := &fakeECRClient{
-		BatchGetImageFn: func(aws.Context, *ecr.BatchGetImageInput, ...request.Option) (*ecr.BatchGetImageOutput, error) {
+		BatchGetImageFn: func(context.Context, *ecr.BatchGetImageInput, ...func(*ecr.Options)) (*ecr.BatchGetImageOutput, error) {
 			return &ecr.BatchGetImageOutput{
-				Images: []*ecr.Image{
-					{ImageId: &ecr.ImageIdentifier{ImageDigest: aws.String(imageDigest)}},
+				Images: []types.Image{
+					{ImageId: &types.ImageIdentifier{ImageDigest: aws.String(imageDigest)}},
 				},
 			}, nil
 		},
@@ -166,7 +166,7 @@ func TestPushBlobReturnsLayerWriter(t *testing.T) {
 	repository := "repository"
 	layerDigest := testdata.InsignificantDigest.String()
 	fakeClient := &fakeECRClient{
-		InitiateLayerUploadFn: func(*ecr.InitiateLayerUploadInput) (*ecr.InitiateLayerUploadOutput, error) {
+		InitiateLayerUploadFn: func(context.Context, *ecr.InitiateLayerUploadInput, ...func(*ecr.Options)) (*ecr.InitiateLayerUploadOutput, error) {
 			// layerWriter calls this during its constructor
 			return &ecr.InitiateLayerUploadOutput{}, nil
 		},
@@ -195,15 +195,15 @@ func TestPushBlobReturnsLayerWriter(t *testing.T) {
 	} {
 		t.Run(mediaType, func(t *testing.T) {
 			callCount := 0
-			fakeClient.BatchCheckLayerAvailabilityFn = func(_ aws.Context, input *ecr.BatchCheckLayerAvailabilityInput, _ ...request.Option) (*ecr.BatchCheckLayerAvailabilityOutput, error) {
+			fakeClient.BatchCheckLayerAvailabilityFn = func(_ context.Context, input *ecr.BatchCheckLayerAvailabilityInput, _ ...func(*ecr.Options)) (*ecr.BatchCheckLayerAvailabilityOutput, error) {
 				callCount++
-				assert.Equal(t, registry, aws.StringValue(input.RegistryId))
-				assert.Equal(t, repository, aws.StringValue(input.RepositoryName))
+				assert.Equal(t, registry, aws.ToString(input.RegistryId))
+				assert.Equal(t, repository, aws.ToString(input.RepositoryName))
 				require.Len(t, input.LayerDigests, 1)
-				assert.Equal(t, layerDigest, aws.StringValue(input.LayerDigests[0]))
+				assert.Equal(t, layerDigest, input.LayerDigests[0])
 				return &ecr.BatchCheckLayerAvailabilityOutput{
-					Layers: []*ecr.Layer{{
-						LayerAvailability: aws.String(ecr.LayerAvailabilityUnavailable),
+					Layers: []types.Layer{{
+						LayerAvailability: types.LayerAvailabilityUnavailable,
 					}},
 				}, nil
 			}
@@ -239,10 +239,10 @@ func TestPushBlobAlreadyExists(t *testing.T) {
 	repository := "repository"
 	layerDigest := testdata.InsignificantDigest.String()
 	fakeClient := &fakeECRClient{
-		BatchCheckLayerAvailabilityFn: func(aws.Context, *ecr.BatchCheckLayerAvailabilityInput, ...request.Option) (*ecr.BatchCheckLayerAvailabilityOutput, error) {
+		BatchCheckLayerAvailabilityFn: func(context.Context, *ecr.BatchCheckLayerAvailabilityInput, ...func(*ecr.Options)) (*ecr.BatchCheckLayerAvailabilityOutput, error) {
 			return &ecr.BatchCheckLayerAvailabilityOutput{
-				Layers: []*ecr.Layer{{
-					LayerAvailability: aws.String(ecr.LayerAvailabilityAvailable),
+				Layers: []types.Layer{{
+					LayerAvailability: types.LayerAvailabilityAvailable,
 				}},
 			}, nil
 		},
@@ -286,9 +286,9 @@ func TestPushBlobAPIError(t *testing.T) {
 	repository := "repository"
 	layerDigest := testdata.InsignificantDigest.String()
 	fakeClient := &fakeECRClient{
-		BatchCheckLayerAvailabilityFn: func(aws.Context, *ecr.BatchCheckLayerAvailabilityInput, ...request.Option) (*ecr.BatchCheckLayerAvailabilityOutput, error) {
+		BatchCheckLayerAvailabilityFn: func(context.Context, *ecr.BatchCheckLayerAvailabilityInput, ...func(*ecr.Options)) (*ecr.BatchCheckLayerAvailabilityOutput, error) {
 			return &ecr.BatchCheckLayerAvailabilityOutput{
-				Failures: []*ecr.LayerFailure{{}},
+				Failures: []types.LayerFailure{{}},
 			}, nil
 		},
 	}

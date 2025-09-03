@@ -53,3 +53,7 @@ cover: $(SOURCES)
 clean:
 	@rm $(PULL_BINARY) ||:
 	@rm $(PUSH_BINARY) ||:
+
+.PHONY: generate-partitions
+generate-partitions:
+	@cd $(SOURCEDIR)/ecr/internal/awsrulesfn && go generate generate_partitions.go

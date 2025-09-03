@@ -22,8 +22,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ecr"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ecr"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/remotes/docker"
@@ -86,7 +86,7 @@ func (mw *manifestWriter) Commit(ctx context.Context, size int64, expected diges
 		}
 	}
 
-	output, err := mw.base.client.PutImageWithContext(ctx, putImageInput)
+	output, err := mw.base.client.PutImage(ctx, putImageInput)
 	if err != nil {
 		return fmt.Errorf("ecr: failed to put manifest: %v: %w", ecrSpec, err)
 	}
@@ -103,7 +103,7 @@ func (mw *manifestWriter) Commit(ctx context.Context, size int64, expected diges
 		return fmt.Errorf("ecr: failed to put manifest, nil output: %v", ecrSpec)
 	}
 
-	actual := aws.StringValue(output.Image.ImageId.ImageDigest)
+	actual := aws.ToString(output.Image.ImageId.ImageDigest)
 	if actual != expected.String() {
 		return fmt.Errorf("digest mismatch: ECR returned %s, expected %s", actual, expected)
 	}

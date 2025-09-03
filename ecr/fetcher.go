@@ -25,8 +25,9 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ecr"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ecr"
+	"github.com/aws/aws-sdk-go-v2/service/ecr/types"
 	httputil "github.com/awslabs/amazon-ecr-containerd-resolver/ecr/internal/util/http"
 	ociutil "github.com/awslabs/amazon-ecr-containerd-resolver/ecr/internal/util/oci"
 	"github.com/containerd/containerd/errdefs"
@@ -84,7 +85,7 @@ func (f *ecrFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.Rea
 
 func (f *ecrFetcher) fetchManifest(ctx context.Context, desc ocispec.Descriptor) (io.ReadCloser, error) {
 	var (
-		image *ecr.Image
+		image *types.Image
 		err   error
 	)
 	// A digest is required to fetch by digest alone. When a digest is not
@@ -104,7 +105,7 @@ func (f *ecrFetcher) fetchManifest(ctx context.Context, desc ocispec.Descriptor)
 		return nil, errors.New("fetchManifest: nil image")
 	}
 
-	return io.NopCloser(bytes.NewReader([]byte(aws.StringValue(image.ImageManifest)))), nil
+	return io.NopCloser(bytes.NewReader([]byte(aws.ToString(image.ImageManifest)))), nil
 }
 
 func (f *ecrFetcher) fetchLayer(ctx context.Context, desc ocispec.Descriptor) (io.ReadCloser, error) {
@@ -114,12 +115,12 @@ func (f *ecrFetcher) fetchLayer(ctx context.Context, desc ocispec.Descriptor) (i
 		RepositoryName: aws.String(f.ecrSpec.Repository),
 		LayerDigest:    aws.String(desc.Digest.String()),
 	}
-	output, err := f.client.GetDownloadUrlForLayerWithContext(ctx, getDownloadUrlForLayerInput)
+	output, err := f.client.GetDownloadUrlForLayer(ctx, getDownloadUrlForLayerInput)
 	if err != nil {
 		return nil, err
 	}
 
-	downloadURL := aws.StringValue(output.DownloadUrl)
+	downloadURL := aws.ToString(output.DownloadUrl)
 	ctx = log.WithLogger(ctx, log.G(ctx).WithField("url", httputil.RedactHTTPQueryValuesFromURL(downloadURL)))
 	if f.parallelism > 0 {
 		return f.fetchLayerHtcat(ctx, desc, downloadURL)

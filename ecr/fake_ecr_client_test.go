@@ -16,50 +16,50 @@
 package ecr
 
 import (
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/ecr"
+	"context"
+
+	"github.com/aws/aws-sdk-go-v2/service/ecr"
 )
 
 // fakeECRClient is a fake that can be used for testing the ecrAPI interface.
 // Each method is backed by a function contained in the struct.  Nil functions
 // will cause panics when invoked.
 type fakeECRClient struct {
-	BatchGetImageFn               func(aws.Context, *ecr.BatchGetImageInput, ...request.Option) (*ecr.BatchGetImageOutput, error)
-	GetDownloadUrlForLayerFn      func(aws.Context, *ecr.GetDownloadUrlForLayerInput, ...request.Option) (*ecr.GetDownloadUrlForLayerOutput, error)
-	BatchCheckLayerAvailabilityFn func(aws.Context, *ecr.BatchCheckLayerAvailabilityInput, ...request.Option) (*ecr.BatchCheckLayerAvailabilityOutput, error)
-	InitiateLayerUploadFn         func(*ecr.InitiateLayerUploadInput) (*ecr.InitiateLayerUploadOutput, error)
-	UploadLayerPartFn             func(*ecr.UploadLayerPartInput) (*ecr.UploadLayerPartOutput, error)
-	CompleteLayerUploadFn         func(*ecr.CompleteLayerUploadInput) (*ecr.CompleteLayerUploadOutput, error)
-	PutImageFn                    func(aws.Context, *ecr.PutImageInput, ...request.Option) (*ecr.PutImageOutput, error)
+	BatchGetImageFn               func(context.Context, *ecr.BatchGetImageInput, ...func(*ecr.Options)) (*ecr.BatchGetImageOutput, error)
+	GetDownloadUrlForLayerFn      func(context.Context, *ecr.GetDownloadUrlForLayerInput, ...func(*ecr.Options)) (*ecr.GetDownloadUrlForLayerOutput, error)
+	BatchCheckLayerAvailabilityFn func(context.Context, *ecr.BatchCheckLayerAvailabilityInput, ...func(*ecr.Options)) (*ecr.BatchCheckLayerAvailabilityOutput, error)
+	InitiateLayerUploadFn         func(context.Context, *ecr.InitiateLayerUploadInput, ...func(*ecr.Options)) (*ecr.InitiateLayerUploadOutput, error)
+	UploadLayerPartFn             func(context.Context, *ecr.UploadLayerPartInput, ...func(*ecr.Options)) (*ecr.UploadLayerPartOutput, error)
+	CompleteLayerUploadFn         func(context.Context, *ecr.CompleteLayerUploadInput, ...func(*ecr.Options)) (*ecr.CompleteLayerUploadOutput, error)
+	PutImageFn                    func(context.Context, *ecr.PutImageInput, ...func(*ecr.Options)) (*ecr.PutImageOutput, error)
 }
 
 var _ ecrAPI = (*fakeECRClient)(nil)
 
-func (f *fakeECRClient) BatchGetImageWithContext(ctx aws.Context, arg *ecr.BatchGetImageInput, opts ...request.Option) (*ecr.BatchGetImageOutput, error) {
+func (f *fakeECRClient) BatchGetImage(ctx context.Context, arg *ecr.BatchGetImageInput, opts ...func(*ecr.Options)) (*ecr.BatchGetImageOutput, error) {
 	return f.BatchGetImageFn(ctx, arg, opts...)
 }
 
-func (f *fakeECRClient) GetDownloadUrlForLayerWithContext(ctx aws.Context, arg *ecr.GetDownloadUrlForLayerInput, opts ...request.Option) (*ecr.GetDownloadUrlForLayerOutput, error) {
+func (f *fakeECRClient) GetDownloadUrlForLayer(ctx context.Context, arg *ecr.GetDownloadUrlForLayerInput, opts ...func(*ecr.Options)) (*ecr.GetDownloadUrlForLayerOutput, error) {
 	return f.GetDownloadUrlForLayerFn(ctx, arg, opts...)
 }
 
-func (f *fakeECRClient) BatchCheckLayerAvailabilityWithContext(ctx aws.Context, arg *ecr.BatchCheckLayerAvailabilityInput, opts ...request.Option) (*ecr.BatchCheckLayerAvailabilityOutput, error) {
+func (f *fakeECRClient) BatchCheckLayerAvailability(ctx context.Context, arg *ecr.BatchCheckLayerAvailabilityInput, opts ...func(*ecr.Options)) (*ecr.BatchCheckLayerAvailabilityOutput, error) {
 	return f.BatchCheckLayerAvailabilityFn(ctx, arg, opts...)
 }
 
-func (f *fakeECRClient) InitiateLayerUpload(arg *ecr.InitiateLayerUploadInput) (*ecr.InitiateLayerUploadOutput, error) {
-	return f.InitiateLayerUploadFn(arg)
+func (f *fakeECRClient) InitiateLayerUpload(ctx context.Context, arg *ecr.InitiateLayerUploadInput, opts ...func(*ecr.Options)) (*ecr.InitiateLayerUploadOutput, error) {
+	return f.InitiateLayerUploadFn(ctx, arg, opts...)
 }
 
-func (f *fakeECRClient) UploadLayerPart(arg *ecr.UploadLayerPartInput) (*ecr.UploadLayerPartOutput, error) {
-	return f.UploadLayerPartFn(arg)
+func (f *fakeECRClient) UploadLayerPart(ctx context.Context, arg *ecr.UploadLayerPartInput, opts ...func(*ecr.Options)) (*ecr.UploadLayerPartOutput, error) {
+	return f.UploadLayerPartFn(ctx, arg, opts...)
 }
 
-func (f *fakeECRClient) CompleteLayerUpload(arg *ecr.CompleteLayerUploadInput) (*ecr.CompleteLayerUploadOutput, error) {
-	return f.CompleteLayerUploadFn(arg)
+func (f *fakeECRClient) CompleteLayerUpload(ctx context.Context, arg *ecr.CompleteLayerUploadInput, opts ...func(*ecr.Options)) (*ecr.CompleteLayerUploadOutput, error) {
+	return f.CompleteLayerUploadFn(ctx, arg, opts...)
 }
 
-func (f *fakeECRClient) PutImageWithContext(ctx aws.Context, arg *ecr.PutImageInput, opts ...request.Option) (*ecr.PutImageOutput, error) {
+func (f *fakeECRClient) PutImage(ctx context.Context, arg *ecr.PutImageInput, opts ...func(*ecr.Options)) (*ecr.PutImageOutput, error) {
 	return f.PutImageFn(ctx, arg, opts...)
 }
